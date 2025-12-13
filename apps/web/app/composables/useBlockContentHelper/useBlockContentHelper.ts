@@ -19,7 +19,9 @@ export const useBlockContentHelper = () => {
     return `rgba(${red}, ${green}, ${blue}, ${opacity})`;
   };
 
-  const getImageHeight = () => {
+  const getImageHeight = (fullHeight = false) => {
+    if (fullHeight) return '100vh';
+
     switch (viewport.breakpoint.value) {
       case '4xl': {
         return '768px';

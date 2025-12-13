@@ -6,7 +6,7 @@
       class="w-full object-cover"
       :style="{
         filter: banner.image?.brightness ? 'brightness(' + (banner.image?.brightness ?? 1) + ')' : '',
-        height: getImageHeight(),
+        height: getImageHeight(props.fullHeight),
       }"
       :loading="props.lazyLoading"
       :data-testid="'banner-image-' + meta.uuid"

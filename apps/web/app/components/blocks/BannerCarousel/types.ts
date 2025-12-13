@@ -35,6 +35,7 @@ export type BannerProps = {
       mobile?: string;
       alt?: string;
       brightness?: number;
+      fullHeight?: boolean;
     };
     text: {
       color?: string;
@@ -57,6 +58,7 @@ export type BannerProps = {
   };
   index: number;
   lazyLoading: 'lazy' | 'eager';
+  fullHeight?: boolean;
   meta: {
     uuid: string;
   };

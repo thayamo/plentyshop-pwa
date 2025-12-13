@@ -32,6 +32,7 @@
           :content-block="banner"
           :index="getSlideAdjustedIndex(slideIndex)"
           :slide-index="slideIndex"
+          :full-height="isFullHeight"
           :lazy-loading="slideIndex > 0 ? 'lazy' : 'eager'"
         />
       </SwiperSlide>
@@ -78,6 +79,7 @@ const handleArrows = () => {
 };
 
 const enableModules = computed(() => content.length > 1);
+const isFullHeight = computed(() => configuration.layout?.fullHeight ?? false);
 let slider: SwiperType | null = null;
 
 const paginationConfig = computed(() => {

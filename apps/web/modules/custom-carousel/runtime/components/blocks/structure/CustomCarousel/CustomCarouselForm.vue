@@ -183,6 +183,17 @@
           <h2 data-testid="slider-button-group-title">{{ getEditorTranslation('layout-label') }}</h2>
         </template>
         <EditorFullWidthToggle v-model="isFullWidth" :block-uuid="blockUuid" />
+
+        <div class="px-4 py-5 border-b">
+          <div class="flex items-center justify-between">
+            <UiFormLabel class="mb-1">{{ getEditorTranslation('full-height-label') }}</UiFormLabel>
+            <SfSwitch
+              v-model="isFullHeight"
+              class="checked:bg-editor-button checked:before:hover:bg-editor-button checked:border-gray-500 checked:hover:border:bg-gray-700 hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300 checked:hover:border-gray-400"
+            />
+          </div>
+          <p class="text-sm text-neutral-500 mt-1">{{ getEditorTranslation('full-height-description') }}</p>
+        </div>
       </UiAccordionItem>
     </div>
   </div>
@@ -201,6 +212,7 @@ import {
   SfIconClose,
   SfIconExpandMore,
   SfIconExpandLess,
+  SfSwitch,
 } from '@storefront-ui/vue';
 import type { CarouselStructureProps } from './types';
 import { v4 as uuid } from 'uuid';
@@ -228,6 +240,13 @@ const { isFullWidth } = useFullWidthToggleForConfig(
   computed(() => carouselStructure.value.configuration),
   { fullWidth: true },
 );
+const isFullHeight = computed({
+  get: () => carouselStructure.value.configuration.layout?.fullHeight ?? false,
+  set: (value: boolean) => {
+    const layout = carouselStructure.value.configuration.layout ?? {};
+    carouselStructure.value.configuration.layout = { ...layout, fullHeight: value };
+  },
+});
 const controls = computed(() => carouselStructure.value.configuration.controls);
 
 const slides = computed({
@@ -350,6 +369,8 @@ input[type='number'] {
     "add-slide-label": "Add Slide",
     "drag-reorder-aria": "Drag to reorder slide",
     "layout-label": "Layout",
+    "full-height-label": "Use full height (100vh)",
+    "full-height-description": "Display slides in full viewport height on large screens.",
     "controls-group-label": "Controls",
     "controls-color-label": "Slider Controls Colour"
   },
@@ -359,6 +380,8 @@ input[type='number'] {
     "add-slide-label": "Add Slide",
     "drag-reorder-aria": "Drag to reorder slide",
     "layout-label": "Layout",
+    "full-height-label": "Volle Höhe nutzen (100vh)",
+    "full-height-description": "Zeige die Slides in voller Viewport-Höhe auf großen Bildschirmen.",
     "controls-group-label": "Controls",
     "controls-color-label": "Slider Controls Colour"
   }
