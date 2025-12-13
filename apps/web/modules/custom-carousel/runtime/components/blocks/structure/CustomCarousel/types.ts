@@ -11,6 +11,7 @@ export type CarouselStructureProps = {
     };
     layout?: {
       fullWidth?: boolean;
+      fullHeight?: boolean;
     };
   };
   index: number;
