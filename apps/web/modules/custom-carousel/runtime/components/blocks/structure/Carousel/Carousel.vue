@@ -11,7 +11,7 @@
       :loop="true"
       :pagination="paginationConfig"
       :navigation="navigationConfig"
-      class="!z-0 !w-full !max-h-[100vh]"
+      class="!z-0 !w-full !max-h-[100vh] !h-[100vh]"
       @swiper="onSwiperInit"
       @slide-change="onSlideChange"
     >
