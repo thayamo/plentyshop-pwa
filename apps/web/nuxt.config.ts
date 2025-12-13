@@ -238,6 +238,7 @@ export default defineNuxtConfig({
     '@plentymarkets/shop-module-mollie',
     '@plentymarkets/shop-module-gtag',
     './modules/custom-header',
+    './modules/custom-carousel',
     '@nuxt/eslint',
     '@nuxt/fonts',
     '@nuxt/image',
