@@ -235,6 +235,7 @@ export default defineNuxtConfig({
     '@plentymarkets/shop-core',
     '@plentymarkets/shop-module-mollie',
     '@plentymarkets/shop-module-gtag',
+    './modules/custom-header',
     '@nuxt/eslint',
     '@nuxt/fonts',
     '@nuxt/image',
