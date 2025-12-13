@@ -1,4 +1,4 @@
-import { addComponentsDir, createResolver, defineNuxtModule } from '@nuxt/kit';
+import { addComponentsDir, addPlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
 
 export default defineNuxtModule({
   meta: {
@@ -11,6 +11,8 @@ export default defineNuxtModule({
       path: resolver.resolve('./runtime/components'),
       pathPrefix: false,
     });
+
+    addPlugin(resolver.resolve('./runtime/plugins/headerCss'));
 
     nuxt.hook('app:resolve', (app) => {
       app.layouts.default = {
@@ -25,4 +27,3 @@ export default defineNuxtModule({
     });
   },
 });
-

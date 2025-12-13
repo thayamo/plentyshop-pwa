@@ -16,6 +16,8 @@ export default defineNuxtConfig({
   app: appConfiguration,
   experimental: {
     asyncContext: true,
+    // Prevent Nuxt from fetching `/_nuxt/builds/meta/dev.json` in dev (can 404 in some setups).
+    appManifest: false,
   },
   appConfig: {
     titleSuffix: process.env.NAME || 'PlentyONE Shop',
@@ -334,7 +336,9 @@ export default defineNuxtConfig({
       name: 'plenty-viewport',
       path: '/',
       sameSite: 'Strict',
-      secure: true,
+      // `secure: true` prevents the cookie from being set on http://localhost, which can cause SSR/client viewport
+      // mismatches during development.
+      secure: process.env.NODE_ENV === 'production',
     },
   },
   veeValidate: {

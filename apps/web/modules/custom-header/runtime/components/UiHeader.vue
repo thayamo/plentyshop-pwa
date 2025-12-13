@@ -1,8 +1,8 @@
 <template>
   <MegaMenu :categories="categoryTree">
     <template v-if="viewport.isGreaterOrEquals('md')">
-      <UiSearch class="hidden md:block flex-1" />
-      <nav class="hidden ml-4 md:flex md:flex-row md:flex-nowrap">
+      <UiSearch class="w-[320px] lg:w-[380px]" />
+      <nav class="flex flex-row flex-nowrap">
         <template v-if="localeCodes.length > 1">
           <UiButton
             v-if="!isLanguageSelectOpen"
