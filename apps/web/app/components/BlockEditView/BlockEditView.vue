@@ -28,10 +28,10 @@ import { SfIconDelete, SfIconClose } from '@storefront-ui/vue';
 const { drawerOpen, blockType, blockUuid } = useSiteConfiguration();
 const { deleteBlock } = useBlockManager();
 
-const modules = import.meta.glob('@/components/**/blocks/**/*Form.vue') as Record<
-  string,
-  () => Promise<{ default: unknown }>
->;
+const modules = {
+  ...import.meta.glob('@/components/**/blocks/**/*Form.vue'),
+  ...import.meta.glob('~~/modules/*/runtime/components/**/blocks/**/*Form.vue'),
+} as Record<string, () => Promise<{ default: unknown }>>;
 
 const getComponent = (name: string) => {
   if (!name) return null;
@@ -59,6 +59,7 @@ const blockTypeNames: Record<string, string> = {
   CategoryData: 'Category Data',
   TechnicalData: 'Technical Data',
   ItemData: 'Item Data',
+  CustomCarousel: 'Custom Image Banner',
 };
 
 const getBlockTypeName = (blockType: string) => {

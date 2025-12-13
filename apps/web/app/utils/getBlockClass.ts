@@ -37,6 +37,7 @@ const PADDING_EXCLUDED_BLOCKS = new Set([
   'TextCard',
   'Footer',
   'Carousel',
+  'CustomCarousel',
   'CategoryData',
   'CategorySorting',
   'BlockSort',

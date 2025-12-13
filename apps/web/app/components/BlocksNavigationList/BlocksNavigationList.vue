@@ -72,7 +72,7 @@ const isNestedMultigrid = (category: BlockListCategory, uuid: string) => {
   return category.blockName === 'MultiGrid' && getBlockDepth(uuid) > 0;
 };
 const isForbiddenBlock = (category: BlockListCategory, uuid: string) => {
-  return ['BannerCarousel', 'ImageText'].includes(category.blockName) && getBlockDepth(uuid) > 0;
+  return ['BannerCarousel', 'ImageText', 'CustomCarousel'].includes(category.blockName) && getBlockDepth(uuid) > 0;
 };
 const isSingleInstanceBlock = (blockName: string) => {
   return ['SortFilter', 'ItemGrid'].includes(blockName);
