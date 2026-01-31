@@ -186,7 +186,7 @@ const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCook
 
 const uptainEnabled = computed({
   get: () => getUptainEnabled() === 'true',
-  set: (value) => updateUptainEnabled(value.toString()),
+  set: (value) => updateUptainEnabled(value ? 'true' : 'false'),
 });
 
 const uptainId = computed({
@@ -196,22 +196,22 @@ const uptainId = computed({
 
 const blockCookiesInitially = computed({
   get: () => getBlockCookies() === 'true',
-  set: (value) => updateBlockCookies(value.toString()),
+  set: (value) => updateBlockCookies(value ? 'true' : 'false'),
 });
 
 const transmitNewsletterData = computed({
   get: () => getNewsletterData() === 'true',
-  set: (value) => updateNewsletterData(value.toString()),
+  set: (value) => updateNewsletterData(value ? 'true' : 'false'),
 });
 
 const transmitCustomerData = computed({
   get: () => getCustomerData() === 'true',
-  set: (value) => updateCustomerData(value.toString()),
+  set: (value) => updateCustomerData(value ? 'true' : 'false'),
 });
 
 const transmitRevenue = computed({
   get: () => getRevenue() === 'true',
-  set: (value) => updateRevenue(value.toString()),
+  set: (value) => updateRevenue(value ? 'true' : 'false'),
 });
 
 const cookieGroupOptions = computed(() => getCookieGroupOptions());
@@ -227,7 +227,7 @@ const uptainCookieGroup = computed({
 
 const registerCookieAsOptOut = computed({
   get: () => getRegisterCookieAsOptOut() === 'true',
-  set: (value) => updateRegisterCookieAsOptOut(value.toString()),
+  set: (value) => updateRegisterCookieAsOptOut(value ? 'true' : 'false'),
 });
 
 // Track changes to show warning
