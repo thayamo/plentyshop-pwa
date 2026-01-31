@@ -32,7 +32,22 @@ export const useUptainData = () => {
     if (path.includes('/checkout')) return 'checkout';
     if (path.includes('/confirmation/')) return 'success';
     if (path.includes('/search')) return 'search';
-    if (path.includes('/tag/') || path.includes('/category/')) return 'category';
+    if (path.includes('/tag/')) return 'category';
+    
+    // Check if we're on a category page
+    // Category pages are handled by [...slug].vue and have type: 'category' in route.meta
+    // Also check if productsCatalog has category data as fallback
+    if (route.meta?.type === 'category') {
+      return 'category';
+    }
+    
+    // Fallback: Check if productsCatalog has category data
+    // This handles cases where route.meta.type might not be set yet
+    const { data: productsCatalog } = useProducts();
+    if (productsCatalog.value?.category) {
+      return 'category';
+    }
+    
     if (path === '/' || path === '') return 'home';
     return 'other';
   };
@@ -336,8 +351,17 @@ export const useUptainData = () => {
 
   const getCategoryData = () => {
     const path = route.path;
-    // Check if we're on a category page (not product, cart, checkout, etc.)
-    if (!path.includes('/category/') && !path.includes('/tag/') && path !== '/' && !path.match(/^\/[^\/]+$/)) {
+    const pageType = getPageType();
+    
+    // Only return category data if we're actually on a category page
+    // Exclude: product, cart, checkout, success, search, home, other pages
+    if (pageType !== 'category') {
+      return null;
+    }
+    
+    // Additional check: make sure we're not on cart, checkout, product, search, or success pages
+    if (path.includes('/cart') || path.includes('/checkout') || path.includes('/product/') || 
+        path.includes('/search') || path.includes('/confirmation/')) {
       return null;
     }
 
@@ -404,6 +428,12 @@ export const useUptainData = () => {
   };
 
   const getSearchData = () => {
+    const pageType = getPageType();
+    // Only return search data if we're actually on a search page
+    if (pageType !== 'search') {
+      return null;
+    }
+    
     const searchTerm = route.query.term as string || route.query.q as string || '';
     if (!searchTerm) return null;
 
@@ -443,6 +473,12 @@ export const useUptainData = () => {
   };
 
   const getSuccessData = () => {
+    const pageType = getPageType();
+    // Only return success data if we're actually on a success page
+    if (pageType !== 'success') {
+      return null;
+    }
+    
     // Check if we're on a confirmation/success page
     // Route structure: /confirmation/[orderId]/[accessKey]
     // The orderId parameter is the correct order number
