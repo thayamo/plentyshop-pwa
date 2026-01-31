@@ -105,20 +105,28 @@ export default defineNuxtPlugin(() => {
     if (!shouldBlockCookies()) return true;
 
     const groupName = (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
-    const storedConsent = getStoredUptainConsent(groupName, consentCookie.value ?? null);
+    const rawConsent = consentCookie.value ?? null;
+    const storedConsent = getStoredUptainConsent(groupName, rawConsent);
     const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
 
-    // Opt-in: require stored consent. Opt-out: default to true unless explicitly denied.
-    if (registerAsOptOut) {
-      return storedConsent !== null ? storedConsent : true;
+    if (storedConsent !== null) {
+      return storedConsent;
     }
 
-    return storedConsent !== null ? storedConsent : false;
+    // If a consent cookie exists (user clicked a button), fall back to group acceptance.
+    if (rawConsent) {
+      const group = cookieGroups.value?.find((cookieGroup: CookieGroup) => cookieGroup.name === groupName);
+      return group?.accepted ?? false;
+    }
+
+    // Opt-in: no consent cookie yet -> false. Opt-out: allow by default.
+    return registerAsOptOut ? true : false;
   };
 
   const consentCookie = useCookie<string>('consent-cookie');
   let lastConsentSnapshot: string | null = consentCookie.value ?? null;
   let isUpdatingConsentCookie = false;
+  let lastUptainSelection: boolean | null = null;
 
   const getStoredUptainConsent = (groupName: string, rawConsent: string | null): boolean | null => {
     if (!rawConsent) return null;
@@ -161,6 +169,17 @@ export default defineNuxtPlugin(() => {
     }
   };
 
+  const captureUptainSelection = () => {
+    const groups = cookieGroups.value;
+    if (!groups) return;
+    const uptainCookie = groups
+      .flatMap((group) => group.cookies || [])
+      .find((cookie) => cookie.name === 'CookieBar.uptain.cookies.uptain.name');
+    if (typeof uptainCookie?.accepted === 'boolean') {
+      lastUptainSelection = uptainCookie.accepted;
+    }
+  };
+
   const syncCookieOptOutState = () => {
     const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
     const groups = cookieGroups.value;
@@ -199,7 +218,8 @@ export default defineNuxtPlugin(() => {
 
     // If consent cookie changed but Uptain is missing, persist the current selection
     if (hasConsentChanged && storedConsent === null) {
-      persistUptainConsent(groupName, !!uptainCookie.accepted);
+      const selection = lastUptainSelection ?? !!uptainCookie.accepted;
+      persistUptainConsent(groupName, selection);
     }
 
     if (hasConsentChanged && !isUpdatingConsentCookie) {
@@ -243,6 +263,7 @@ export default defineNuxtPlugin(() => {
     watch(
       () => cookieGroups.value,
       () => {
+        captureUptainSelection();
         scheduleSync();
         syncCookieOptOutState();
       },
