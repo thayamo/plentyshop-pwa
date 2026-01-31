@@ -8,6 +8,7 @@ export default defineNuxtPlugin(() => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
+  const { getSetting: getUptainCookieGroup } = useSiteSettings('uptainCookieGroup');
   
   // Get cookie groups - useCookieBar is auto-imported
   const { cookieGroups } = useCookieBar();
@@ -77,12 +78,18 @@ export default defineNuxtPlugin(() => {
   const checkCookieConsent = (): boolean => {
     if (!shouldBlockCookies()) return true;
 
-    // Check if uptain cookie group is accepted
-    // Assuming uptain would be in a functional or analytics cookie group
-    // This needs to be configured in cookie.config.ts
-    const uptainCookieGroup = cookieGroups.value?.find((group: CookieGroup) =>
-      group.cookies?.some((cookie: Cookie) => cookie.name?.includes('uptain') || cookie.name?.includes('Uptain')),
-    );
+    // Get the configured cookie group from settings
+    const configuredCookieGroupValue = getUptainCookieGroup();
+    if (!configuredCookieGroupValue) {
+      // If no cookie group is configured, allow by default (backward compatibility)
+      return true;
+    }
+
+    // Find the cookie group that matches the configured value
+    // The value is a translation key like 'CookieBar.functional.label'
+    const uptainCookieGroup = cookieGroups.value?.find((group: CookieGroup) => {
+      return group.name === configuredCookieGroupValue;
+    });
 
     return uptainCookieGroup?.accepted ?? false;
   };
