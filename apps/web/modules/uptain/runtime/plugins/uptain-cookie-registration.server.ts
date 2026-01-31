@@ -33,7 +33,9 @@ export default defineNuxtPlugin(() => {
       Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
       PrivacyPolicy: '/PrivacyPolicy',
       Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
-      accepted: !registerAsOptOut, // If opt-out, start as not accepted
+      // For opt-in (default), start as not accepted until consent is given.
+      // For opt-out, start as accepted and allow users to opt out.
+      accepted: registerAsOptOut,
     },
     configuredCookieGroup,
   );

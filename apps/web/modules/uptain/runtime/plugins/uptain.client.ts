@@ -131,13 +131,9 @@ export default defineNuxtPlugin(() => {
     const desiredStatus = registerAsOptOut
       ? 'CookieBar.uptain.cookies.uptain.status.optOut'
       : 'CookieBar.uptain.cookies.uptain.status';
-    const desiredAccepted = !registerAsOptOut;
 
     if (uptainCookie.Status !== desiredStatus) {
       uptainCookie.Status = desiredStatus;
-    }
-    if (uptainCookie.accepted !== desiredAccepted) {
-      uptainCookie.accepted = desiredAccepted;
     }
   };
 
