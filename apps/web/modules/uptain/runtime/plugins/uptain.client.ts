@@ -36,6 +36,23 @@ export default defineNuxtPlugin(() => {
     }
   };
 
+  const logScriptData = (script: HTMLElement | null) => {
+    if (typeof window === 'undefined' || !window.__UPTAIN_DEBUG__) return;
+    if (!script) return;
+
+    const attributes = script.getAttributeNames().filter((name) => name.startsWith('data-'));
+    if (attributes.length === 0) {
+      console.log('[Uptain Debug] No data-* attributes found on script.');
+      return;
+    }
+
+    attributes.forEach((attr) => {
+      const value = script.getAttribute(attr) ?? '';
+      const key = attr.replace(/^data-/, '');
+      console.log(`${key}: "${value}"`);
+    });
+  };
+
   const loadUptainScript = async () => {
     console.log('[Uptain] loadUptainScript called');
     const uptainId = getValidUptainId();
@@ -82,6 +99,7 @@ export default defineNuxtPlugin(() => {
     // Append to body
     document.body.appendChild(script);
     console.log('[Uptain] Script appended to body:', script.src);
+    logScriptData(script);
 
     // Initialize event bus if not exists
     if (typeof window !== 'undefined' && !window._upEventBus) {
@@ -312,6 +330,7 @@ export default defineNuxtPlugin(() => {
                   currentScript.removeAttribute(`data-${key}`);
                 }
               });
+              logScriptData(currentScript);
               // Trigger data read
               if (window._upEventBus) {
                 window._upEventBus.publish('uptain.readData');
@@ -332,6 +351,7 @@ declare global {
     _upEventBus?: {
       publish: (event: string) => void;
     };
+    __UPTAIN_DEBUG__?: boolean;
   }
 }
 

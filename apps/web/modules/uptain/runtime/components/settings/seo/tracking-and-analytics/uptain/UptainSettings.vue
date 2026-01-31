@@ -187,6 +187,16 @@
       </div>
     </div>
 
+    <div class="flex justify-center">
+      <a
+        href="#"
+        style="display: flex; width: 100%; text-align: center; align-items: center; justify-content: center; color: rgb(79, 79, 79); font-size: 90%;"
+        @click.prevent="toggleDebugMode"
+      >
+        {{ isDebugActive ? getEditorTranslation('debugMode.deactivate') : getEditorTranslation('debugMode.activate') }}
+      </a>
+    </div>
+
     <!-- Registration CTA -->
     <div style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
       <h3 style="color: rgb(48, 187, 181); font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5em;">
@@ -305,6 +315,40 @@ const registerCookieAsOptOut = computed({
   },
 });
 
+const isDebugActive = ref(false);
+
+const toggleDebugMode = () => {
+  isDebugActive.value = !isDebugActive.value;
+  if (typeof window !== 'undefined') {
+    window.__UPTAIN_DEBUG__ = isDebugActive.value;
+  }
+  if (isDebugActive.value) {
+    logUptainData();
+  }
+};
+
+const logUptainData = () => {
+  if (typeof window === 'undefined') return;
+
+  const script = document.getElementById('__up_data_qp');
+  if (!script) {
+    console.log('[Uptain] No script element found (#__up_data_qp).');
+    return;
+  }
+
+  const attributes = script.getAttributeNames().filter((name) => name.startsWith('data-'));
+  if (attributes.length === 0) {
+    console.log('[Uptain] No data-* attributes found on script.');
+    return;
+  }
+
+  attributes.forEach((attr) => {
+    const value = script.getAttribute(attr) ?? '';
+    const key = attr.replace(/^data-/, '');
+    console.log(`${key}: "${value}"`);
+  });
+};
+
 // Track changes to show warning
 const hasChanges = ref(false);
 
@@ -339,6 +383,10 @@ watch(
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
+    "debugMode": {
+      "activate": "Debug Modus aktivieren",
+      "deactivate": "Debug Modus deaktivieren"
+    },
     "redeployWarning": "This group of settings will require a shop redeploy to take effect.",
     "uptainId": {
       "label": "Uptain Tracking ID",
@@ -368,6 +416,10 @@ watch(
     "cookieSettingsLabel": "Cookie-Einstellungen",
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
+    },
+    "debugMode": {
+      "activate": "Debug Modus aktivieren",
+      "deactivate": "Debug Modus deaktivieren"
     },
     "redeployWarning": "Diese Gruppe von Einstellungen erfordert ein erneutes Deployment des Shops, um wirksam zu werden.",
     "uptainId": {
