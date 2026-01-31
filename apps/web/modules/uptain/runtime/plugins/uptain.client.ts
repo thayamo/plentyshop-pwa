@@ -8,6 +8,7 @@ export default defineNuxtPlugin(() => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
+  const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
   const runtimeConfig = useRuntimeConfig();
   
   // Get cookie groups - useCookieBar is auto-imported
@@ -116,6 +117,30 @@ export default defineNuxtPlugin(() => {
     return uptainCookieGroup?.accepted ?? false;
   };
 
+  const syncCookieOptOutState = () => {
+    const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
+    const groups = cookieGroups.value;
+    if (!groups) return;
+
+    const uptainCookie = groups
+      .flatMap((group) => group.cookies || [])
+      .find((cookie) => cookie.name === 'CookieBar.uptain.cookies.uptain.name');
+
+    if (!uptainCookie) return;
+
+    const desiredStatus = registerAsOptOut
+      ? 'CookieBar.uptain.cookies.uptain.status.optOut'
+      : 'CookieBar.uptain.cookies.uptain.status';
+    const desiredAccepted = !registerAsOptOut;
+
+    if (uptainCookie.Status !== desiredStatus) {
+      uptainCookie.Status = desiredStatus;
+    }
+    if (uptainCookie.accepted !== desiredAccepted) {
+      uptainCookie.accepted = desiredAccepted;
+    }
+  };
+
   // Load script on client and keep it in sync with settings/route
   if (process.client) {
     const syncUptainScript = async () => {
@@ -140,9 +165,10 @@ export default defineNuxtPlugin(() => {
 
     // Watch for Uptain enabled/disabled, ID or cookie group changes
     watch(
-      [() => getUptainEnabled(), () => getUptainId(), () => shouldBlockCookies()],
+      [() => getUptainEnabled(), () => getUptainId(), () => shouldBlockCookies(), () => getRegisterCookieAsOptOut()],
       () => {
         scheduleSync();
+        syncCookieOptOutState();
       },
       { immediate: true },
     );
@@ -152,6 +178,7 @@ export default defineNuxtPlugin(() => {
       () => cookieGroups.value,
       () => {
         scheduleSync();
+        syncCookieOptOutState();
       },
       { deep: true },
     );
