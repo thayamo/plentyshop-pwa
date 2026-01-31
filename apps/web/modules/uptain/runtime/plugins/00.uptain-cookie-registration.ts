@@ -1,3 +1,5 @@
+import { nextTick } from 'vue';
+
 /**
  * Plugin to register Uptain cookies in the cookie consent manager
  * Uses useRegisterCookie composable from @plentymarkets/shop-core to dynamically add cookies

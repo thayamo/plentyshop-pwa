@@ -19,15 +19,27 @@ export default defineNuxtPlugin(() => {
     return value === 'true' || value === '1';
   };
 
-  // Check if Uptain is enabled
-  const isUptainEnabled = isSettingEnabled(getUptainEnabled());
-  if (!isUptainEnabled) return;
+  const getValidUptainId = (): string => {
+    const id = getUptainId();
+    if (!id || id === 'XXXXXXXXXXXXXXXX') return '';
+    return id;
+  };
 
-  const uptainId = getUptainId();
-  if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
+  const removeUptainScript = () => {
+    const existingScript = document.getElementById('__up_data_qp');
+    if (existingScript) {
+      existingScript.remove();
+    }
+  };
 
   const loadUptainScript = async () => {
     console.log('[Uptain] loadUptainScript called');
+    const uptainId = getValidUptainId();
+    if (!uptainId) {
+      console.warn('[Uptain] No valid Uptain ID set, script not loaded');
+      removeUptainScript();
+      return;
+    }
     
     // Get product if on product page
     let product = null;
@@ -47,10 +59,7 @@ export default defineNuxtPlugin(() => {
     }
 
     // Remove existing script if any
-    const existingScript = document.getElementById('__up_data_qp');
-    if (existingScript) {
-      existingScript.remove();
-    }
+    removeUptainScript();
 
     // Create script element with all data attributes
     const script = document.createElement('script');
@@ -110,60 +119,50 @@ export default defineNuxtPlugin(() => {
   // Load script on mount if cookies are not blocked or consent is given
   if (process.client) {
     onMounted(() => {
-      // Watch for Uptain enabled/disabled changes
+      const syncUptainScript = async () => {
+        const enabled = isSettingEnabled(getUptainEnabled());
+        const uptainId = getValidUptainId();
+        const shouldBlock = shouldBlockCookies();
+        const hasConsent = checkCookieConsent();
+
+        // Debug logging
+        console.log('[Uptain] Sync - Enabled:', enabled, 'ID set:', !!uptainId, 'Should block:', shouldBlock, 'Has consent:', hasConsent);
+
+        if (enabled && uptainId && (!shouldBlock || hasConsent)) {
+          await loadUptainScript();
+        } else {
+          removeUptainScript();
+        }
+      };
+
+      // Watch for Uptain enabled/disabled, ID or cookie group changes
       watch(
-        () => getUptainEnabled(),
-        async (enabled) => {
-          if (isSettingEnabled(enabled)) {
-            const shouldBlock = shouldBlockCookies();
-            const hasConsent = checkCookieConsent();
-            
-            // Debug logging
-            console.log('[Uptain] Enabled:', enabled, 'Should block:', shouldBlock, 'Has consent:', hasConsent);
-            
-            if (!shouldBlock || hasConsent) {
-              await loadUptainScript();
-            }
-          } else {
-            // Remove script if disabled
-            const existingScript = document.getElementById('__up_data_qp');
-            if (existingScript) {
-              existingScript.remove();
-            }
-          }
+        [() => getUptainEnabled(), () => getUptainId(), () => getUptainCookieGroup(), () => shouldBlockCookies()],
+        () => {
+          syncUptainScript();
         },
         { immediate: true },
       );
 
-      // Initial load check
-      const shouldBlock = shouldBlockCookies();
-      const hasConsent = checkCookieConsent();
-      
-      // Debug logging
-      console.log('[Uptain] Initial load - Should block:', shouldBlock, 'Has consent:', hasConsent);
-      
-      if (!shouldBlock || hasConsent) {
-        loadUptainScript();
-      }
-
       // Watch for cookie consent changes
-      if (shouldBlockCookies()) {
-        watch(
-          () => cookieGroups.value,
-          () => {
-            if (isSettingEnabled(getUptainEnabled()) && checkCookieConsent()) {
-              loadUptainScript();
-            }
-          },
-          { deep: true },
-        );
-      }
+      watch(
+        () => cookieGroups.value,
+        () => {
+          syncUptainScript();
+        },
+        { deep: true },
+      );
 
       // Watch for route changes to update data
       watch(
         () => route.path,
         async () => {
-          if (!isSettingEnabled(getUptainEnabled())) return;
+          const enabled = isSettingEnabled(getUptainEnabled());
+          const uptainId = getValidUptainId();
+          if (!enabled || !uptainId) {
+            removeUptainScript();
+            return;
+          }
           if (!shouldBlockCookies() || checkCookieConsent()) {
             // Get product if on product page
             let product = null;
