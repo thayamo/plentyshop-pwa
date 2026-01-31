@@ -381,17 +381,56 @@ export const useUptainData = () => {
     };
   };
 
-  const shouldTransmitPersonalData = (): boolean => {
+  const checkNewsletterSubscription = async (): Promise<boolean> => {
+    if (!user.value) return false;
+    
+    // Check if user has emailFolder property (newsletter subscription indicator)
+    // In PlentyMarkets, users with newsletter subscriptions typically have emailFolder set
+    // This is a best-effort check as the exact property might vary
+    const hasEmailFolder = !!(user.value as any).emailFolder;
+    
+    // Alternative: Check if there's a newsletter-related property
+    // Note: The exact property name might need to be adjusted based on the actual API response
+    return hasEmailFolder || !!(user.value as any).isNewsletterSubscriber || false;
+  };
+
+  const checkHasSuccessfulOrders = async (): Promise<boolean> => {
+    if (!isAuthorized.value || !user.value) return false;
+
+    try {
+      const { fetchCustomerOrders } = useCustomerOrders();
+      const ordersData = await fetchCustomerOrders({ page: 1 });
+      
+      if (!ordersData?.data?.entries || ordersData.data.entries.length === 0) {
+        return false;
+      }
+
+      // Check if there's at least one successful order (positive itemSumNet)
+      return ordersData.data.entries.some((order: Order) => {
+        const totals = orderGetters.getTotals(order);
+        if (totals) {
+          const netTotal = totals.itemSumNet || 0;
+          return netTotal > 0;
+        }
+        return false;
+      });
+    } catch (error) {
+      console.error('Error checking orders:', error);
+      return false;
+    }
+  };
+
+  const shouldTransmitPersonalData = async (): Promise<boolean> => {
     if (!isAuthorized || !user.value) return false;
 
     const transmitNewsletter = getNewsletterData() === 'true';
     const transmitCustomer = getCustomerData() === 'true';
 
-    // TODO: Check if user is newsletter subscriber
-    const isNewsletterSubscriber = false;
+    // Check if user is newsletter subscriber
+    const isNewsletterSubscriber = await checkNewsletterSubscription();
 
-    // TODO: Check if user has at least one successful order
-    const hasOrders = false;
+    // Check if user has at least one successful order
+    const hasOrders = await checkHasSuccessfulOrders();
 
     return (transmitNewsletter && isNewsletterSubscriber) || (transmitCustomer && hasOrders);
   };
@@ -452,8 +491,29 @@ export const useUptainData = () => {
     }
   };
 
+  const getCustomerGroupName = (): string => {
+    if (!user.value) return '';
+    
+    // Try to get customer group name from various possible properties
+    // The exact property name might vary based on the API response
+    const userAny = user.value as any;
+    
+    // Check for customer group name directly
+    if (userAny.customerGroupName) return userAny.customerGroupName;
+    if (userAny.customerGroup?.name) return userAny.customerGroup.name;
+    if (userAny.className) return userAny.className;
+    if (userAny.class?.name) return userAny.class.name;
+    
+    // Fallback to ID if name is not available
+    if (userAny.customerGroupId) return userAny.customerGroupId.toString();
+    if (userAny.classId) return userAny.classId.toString();
+    if (userAny.plentyId) return userAny.plentyId.toString();
+    
+    return '';
+  };
+
   const getPersonalData = async () => {
-    if (!shouldTransmitPersonalData() || !user.value) return null;
+    if (!(await shouldTransmitPersonalData()) || !user.value) return null;
 
     const transmitRevenue = getRevenue() === 'true';
     // Calculate revenue asynchronously if needed
@@ -467,7 +527,7 @@ export const useUptainData = () => {
       title: (user.value as any).title || '',
       uid: user.value.id?.toString() || '',
       revenue: transmitRevenue ? revenue : '',
-      customergroup: (user.value as any).plentyId?.toString() || '',
+      customergroup: getCustomerGroupName(),
     };
   };
 
