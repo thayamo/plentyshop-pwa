@@ -17,10 +17,13 @@ export default defineNuxtPlugin({
     const { getSetting: getUptainCookieGroup } = useSiteSettings('uptainCookieGroup');
     const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 
-    // Helper function to check if a setting value is enabled (supports both 'true'/'1' and 'false'/'0')
-    const isSettingEnabled = (value: string | undefined): boolean => {
-      if (!value) return false;
-      return value === 'true' || value === '1';
+    // Helper function to check if a setting value is enabled
+    // Handles string/number/boolean values from runtime config or site settings.
+    const isSettingEnabled = (value: string | number | boolean | undefined | null): boolean => {
+      if (value === true || value === 1) return true;
+      if (value === false || value === 0 || value == null) return false;
+      if (typeof value === 'string') return value === 'true' || value === '1';
+      return false;
     };
 
     // Check if Uptain is enabled

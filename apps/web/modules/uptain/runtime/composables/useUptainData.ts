@@ -468,9 +468,11 @@ export const useUptainData = () => {
   };
 
   // Helper function to check if a setting value is enabled (supports both 'true'/'1' and 'false'/'0')
-  const isSettingEnabled = (value: string | undefined): boolean => {
-    if (!value) return false;
-    return value === 'true' || value === '1';
+  const isSettingEnabled = (value: string | number | boolean | undefined | null): boolean => {
+    if (value === true || value === 1) return true;
+    if (value === false || value === 0 || value == null) return false;
+    if (typeof value === 'string') return value === 'true' || value === '1';
+    return false;
   };
 
   const shouldTransmitPersonalData = async (): Promise<boolean> => {
