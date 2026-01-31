@@ -148,27 +148,6 @@
         {{ getEditorTranslation('cookieSettingsLabel') }}
       </div>
       
-      <!-- Cookie Group -->
-      <div>
-        <div class="flex justify-between mb-2">
-          <UiFormLabel>{{ getEditorTranslation('cookieGroup.label') }}</UiFormLabel>
-        </div>
-        <label>
-          <Multiselect
-            v-model="uptainCookieGroup"
-            :options="cookieGroupOptions"
-            :placeholder="getEditorTranslation('cookieGroup.placeholder')"
-            :searchable="false"
-            :allow-empty="false"
-            label="label"
-            track-by="value"
-            select-label=""
-            deselect-label=""
-            data-testid="uptain-cookie-group"
-          />
-        </label>
-      </div>
-
       <!-- Block cookies initially -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
@@ -231,9 +210,6 @@
 </template>
 <script setup lang="ts">
 import { SfInput, SfIconInfo, SfTooltip, SfSwitch } from '@storefront-ui/vue';
-import Multiselect from 'vue-multiselect';
-import type { SettingOption } from '~/utils/editorSettings';
-import { getCookieGroupOptions } from '~/utils/editorSettings';
 
 const { updateSetting: updateUptainEnabled, getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
 const { updateSetting, getSetting } = useSiteSettings('uptainId');
@@ -241,7 +217,6 @@ const { updateSetting: updateBlockCookies, getSetting: getBlockCookies } = useSi
 const { updateSetting: updateNewsletterData, getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
 const { updateSetting: updateCustomerData, getSetting: getCustomerData } = useSiteSettings('uptainTransmitCustomerData');
 const { updateSetting: updateRevenue, getSetting: getRevenue } = useSiteSettings('uptainTransmitRevenue');
-const { updateSetting: updateCookieGroup, getSetting: getCookieGroup } = useSiteSettings('uptainCookieGroup');
 const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 
 const uptainEnabled = computed({
@@ -316,16 +291,6 @@ const transmitRevenue = computed({
   },
 });
 
-const cookieGroupOptions = computed(() => getCookieGroupOptions());
-
-const uptainCookieGroup = computed({
-  get: () => {
-    return cookieGroupOptions.value.find((o: SettingOption) => o.value === getCookieGroup());
-  },
-  set: (option) => {
-    updateCookieGroup(option?.value ?? '');
-  },
-});
 
 const registerCookieAsOptOut = computed({
   get: () => {
@@ -352,7 +317,6 @@ watch(
     () => getNewsletterData(),
     () => getCustomerData(),
     () => getRevenue(),
-    () => getCookieGroup(),
     () => getRegisterCookieAsOptOut(),
   ],
   () => {
@@ -372,10 +336,6 @@ watch(
       "description": "Activate or deactivate the Uptain tracking script. When disabled, no scripts will be loaded."
     },
     "cookieSettingsLabel": "Cookie Settings",
-    "cookieGroup": {
-      "label": "Cookie Group",
-      "placeholder": "Select Cookie Group"
-    },
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
@@ -406,10 +366,6 @@ watch(
       "description": "Aktivieren oder deaktivieren Sie das Uptain Tracking-Script. Wenn deaktiviert, werden keine Scripts geladen."
     },
     "cookieSettingsLabel": "Cookie-Einstellungen",
-    "cookieGroup": {
-      "label": "Cookie Group",
-      "placeholder": "Cookie Group auswählen"
-    },
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },

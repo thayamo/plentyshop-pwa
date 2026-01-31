@@ -8,7 +8,7 @@ export default defineNuxtPlugin(() => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
-  const { getSetting: getUptainCookieGroup } = useSiteSettings('uptainCookieGroup');
+  const runtimeConfig = useRuntimeConfig();
   
   // Get cookie groups - useCookieBar is auto-imported
   const { cookieGroups } = useCookieBar();
@@ -104,11 +104,8 @@ export default defineNuxtPlugin(() => {
     if (!shouldBlockCookies()) return true;
 
     // Get the configured cookie group from settings
-    const configuredCookieGroupValue = getUptainCookieGroup();
-    if (!configuredCookieGroupValue) {
-      // If no cookie group is configured, allow by default (backward compatibility)
-      return true;
-    }
+    const configuredCookieGroupValue =
+      (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
 
     // Find the cookie group that matches the configured value
     // The value is a translation key like 'CookieBar.functional.label'
@@ -143,7 +140,7 @@ export default defineNuxtPlugin(() => {
 
     // Watch for Uptain enabled/disabled, ID or cookie group changes
     watch(
-      [() => getUptainEnabled(), () => getUptainId(), () => getUptainCookieGroup(), () => shouldBlockCookies()],
+      [() => getUptainEnabled(), () => getUptainId(), () => shouldBlockCookies()],
       () => {
         scheduleSync();
       },

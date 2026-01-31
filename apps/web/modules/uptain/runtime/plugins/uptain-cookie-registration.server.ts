@@ -3,19 +3,8 @@
  * This plugin runs before the cookie bar is initialized and adds Uptain cookies
  * to the configured cookie group dynamically.
  */
-export default defineNuxtPlugin(async () => {
+export default defineNuxtPlugin(() => {
   const runtimeConfig = useRuntimeConfig();
-  const { initialData } = useSiteSettings();
-
-  // Ensure site settings are loaded on SSR so we can use the selected cookie group
-  if (!initialData.value || !('uptainCookieGroup' in initialData.value)) {
-    const { setInitialDataSSR } = useInitialSetup();
-    await callOnce('uptain-init-settings', async () => {
-      await setInitialDataSSR();
-    });
-  }
-
-  const { getSetting: getUptainCookieGroup } = useSiteSettings('uptainCookieGroup');
   const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 
   // Helper function to check if a setting value is enabled
@@ -28,9 +17,7 @@ export default defineNuxtPlugin(async () => {
   };
 
   const configuredCookieGroup =
-    getUptainCookieGroup() ||
-    (runtimeConfig.public.uptainCookieGroup as string | undefined) ||
-    'CookieBar.marketing.label';
+    (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
 
   if (!configuredCookieGroup) return;
 
