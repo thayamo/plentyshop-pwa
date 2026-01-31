@@ -458,11 +458,17 @@ export const useUptainData = () => {
     }
   };
 
+  // Helper function to check if a setting value is enabled (supports both 'true'/'1' and 'false'/'0')
+  const isSettingEnabled = (value: string | undefined): boolean => {
+    if (!value) return false;
+    return value === 'true' || value === '1';
+  };
+
   const shouldTransmitPersonalData = async (): Promise<boolean> => {
     if (!isAuthorized || !user.value) return false;
 
-    const transmitNewsletter = getNewsletterData() === 'true';
-    const transmitCustomer = getCustomerData() === 'true';
+    const transmitNewsletter = isSettingEnabled(getNewsletterData());
+    const transmitCustomer = isSettingEnabled(getCustomerData());
 
     // Check if user is newsletter subscriber
     const isNewsletterSubscriber = await checkNewsletterSubscription();
@@ -553,7 +559,7 @@ export const useUptainData = () => {
   const getPersonalData = async () => {
     if (!(await shouldTransmitPersonalData()) || !user.value) return null;
 
-    const transmitRevenue = getRevenue() === 'true';
+    const transmitRevenue = isSettingEnabled(getRevenue());
     // Calculate revenue asynchronously if needed
     const revenue = transmitRevenue ? await calculateRevenue() : '0.00';
 
@@ -623,7 +629,7 @@ export const useUptainData = () => {
   };
 
   const shouldBlockCookies = (): boolean => {
-    return getBlockCookies() === 'true';
+    return isSettingEnabled(getBlockCookies());
   };
 
   return {

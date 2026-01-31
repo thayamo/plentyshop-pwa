@@ -35,10 +35,20 @@
           <UiFormLabel class="mb-1">{{ getEditorTranslation('enableUptain.label') }}</UiFormLabel>
           <p class="text-sm text-neutral-500">{{ getEditorTranslation('enableUptain.description') }}</p>
         </div>
-        <SfSwitch
-          v-model="uptainEnabled"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="uptainEnabled"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="uptainEnabled === 1"
+            @update:model-value="uptainEnabled = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
     </div>
 
@@ -75,28 +85,58 @@
       <!-- Transmit personal data for newsletter subscribers -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitNewsletterData.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="transmitNewsletterData"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="transmitNewsletterData"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="transmitNewsletterData === 1"
+            @update:model-value="transmitNewsletterData = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
 
       <!-- Transmit personal data for existing customers -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitCustomerData.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="transmitCustomerData"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="transmitCustomerData"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="transmitCustomerData === 1"
+            @update:model-value="transmitCustomerData = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
 
       <!-- Transmit revenue -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitRevenue.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="transmitRevenue"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="transmitRevenue"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="transmitRevenue === 1"
+            @update:model-value="transmitRevenue = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
     </div>
 
@@ -132,19 +172,39 @@
       <!-- Block cookies initially -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="blockCookiesInitially"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="blockCookiesInitially"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="blockCookiesInitially === 1"
+            @update:model-value="blockCookiesInitially = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
 
       <!-- Register Cookie as opt-out -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('registerCookieAsOptOut.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="registerCookieAsOptOut"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
+        <div style="position: relative;">
+          <input
+            v-model.number="registerCookieAsOptOut"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="registerCookieAsOptOut === 1"
+            @update:model-value="registerCookieAsOptOut = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
       </div>
     </div>
 
@@ -185,8 +245,18 @@ const { updateSetting: updateCookieGroup, getSetting: getCookieGroup } = useSite
 const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 
 const uptainEnabled = computed({
-  get: () => getUptainEnabled() === 'true',
-  set: (value) => updateUptainEnabled(value ? 'true' : 'false'),
+  get: () => {
+    const value = getUptainEnabled();
+    // Convert 'true'/'false' to 1/0, or return number if already number
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    // Store as number (1 or 0)
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateUptainEnabled(numValue.toString());
+  },
 });
 
 const uptainId = computed({
@@ -195,23 +265,55 @@ const uptainId = computed({
 });
 
 const blockCookiesInitially = computed({
-  get: () => getBlockCookies() === 'true',
-  set: (value) => updateBlockCookies(value ? 'true' : 'false'),
+  get: () => {
+    const value = getBlockCookies();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateBlockCookies(numValue.toString());
+  },
 });
 
 const transmitNewsletterData = computed({
-  get: () => getNewsletterData() === 'true',
-  set: (value) => updateNewsletterData(value ? 'true' : 'false'),
+  get: () => {
+    const value = getNewsletterData();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateNewsletterData(numValue.toString());
+  },
 });
 
 const transmitCustomerData = computed({
-  get: () => getCustomerData() === 'true',
-  set: (value) => updateCustomerData(value ? 'true' : 'false'),
+  get: () => {
+    const value = getCustomerData();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateCustomerData(numValue.toString());
+  },
 });
 
 const transmitRevenue = computed({
-  get: () => getRevenue() === 'true',
-  set: (value) => updateRevenue(value ? 'true' : 'false'),
+  get: () => {
+    const value = getRevenue();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateRevenue(numValue.toString());
+  },
 });
 
 const cookieGroupOptions = computed(() => getCookieGroupOptions());
@@ -226,8 +328,16 @@ const uptainCookieGroup = computed({
 });
 
 const registerCookieAsOptOut = computed({
-  get: () => getRegisterCookieAsOptOut() === 'true',
-  set: (value) => updateRegisterCookieAsOptOut(value ? 'true' : 'false'),
+  get: () => {
+    const value = getRegisterCookieAsOptOut();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateRegisterCookieAsOptOut(numValue.toString());
+  },
 });
 
 // Track changes to show warning

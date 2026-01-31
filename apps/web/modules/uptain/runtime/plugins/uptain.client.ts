@@ -13,8 +13,14 @@ export default defineNuxtPlugin(() => {
   // Get cookie groups - useCookieBar is auto-imported
   const { cookieGroups } = useCookieBar();
 
+  // Helper function to check if a setting value is enabled (supports both 'true'/'1' and 'false'/'0')
+  const isSettingEnabled = (value: string | undefined): boolean => {
+    if (!value) return false;
+    return value === 'true' || value === '1';
+  };
+
   // Check if Uptain is enabled
-  const isUptainEnabled = getUptainEnabled() === 'true';
+  const isUptainEnabled = isSettingEnabled(getUptainEnabled());
   if (!isUptainEnabled) return;
 
   const uptainId = getUptainId();
@@ -101,7 +107,7 @@ export default defineNuxtPlugin(() => {
       watch(
         () => getUptainEnabled(),
         (enabled) => {
-          if (enabled === 'true') {
+          if (isSettingEnabled(enabled)) {
             if (!shouldBlockCookies() || checkCookieConsent()) {
               loadUptainScript();
             }
@@ -125,7 +131,7 @@ export default defineNuxtPlugin(() => {
         watch(
           () => cookieGroups.value,
           () => {
-            if (getUptainEnabled() === 'true' && checkCookieConsent()) {
+            if (isSettingEnabled(getUptainEnabled()) && checkCookieConsent()) {
               loadUptainScript();
             }
           },
@@ -136,8 +142,8 @@ export default defineNuxtPlugin(() => {
       // Watch for route changes to update data
       watch(
         () => route.path,
-        () => {
-          if (getUptainEnabled() !== 'true') return;
+        async () => {
+          if (!isSettingEnabled(getUptainEnabled())) return;
           if (!shouldBlockCookies() || checkCookieConsent()) {
             // Get product if on product page
             let product = null;
@@ -167,7 +173,7 @@ export default defineNuxtPlugin(() => {
                 }
               }
             } else {
-              loadUptainScript();
+              await loadUptainScript();
             }
           }
         },
