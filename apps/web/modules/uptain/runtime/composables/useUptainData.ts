@@ -1,5 +1,5 @@
 import type { Cart, CartItem, Product, User, Order } from '@plentymarkets/shop-api';
-import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters } from '@plentymarkets/shop-api';
+import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters, tagGetters } from '@plentymarkets/shop-api';
 
 export const useUptainData = () => {
   const route = useRoute();
@@ -132,10 +132,46 @@ export const useUptainData = () => {
     const originalPrice = productGetters.getCrossedPrice(product) || productPrice;
     const productImage = productGetters.getCoverImage(product) || '';
     const categoryIds = productGetters.getCategoryIds(product) || [];
-    const productCategory = categoryIds[0]?.toString() || '';
-    const categoryPaths = categoryIds.join('/') || '';
 
-    const tags: string[] = [];
+    // Get product tags
+    const productTags = tagGetters.getTags(product) || [];
+    const tags = productTags.map((tag) => tagGetters.getTagName(tag)).filter(Boolean);
+
+    // Get category name and paths from categoryTree
+    const { data: categoryTree } = useCategoryTree();
+    let productCategory = '';
+    const categoryPaths: string[] = [];
+
+    if (categoryTree.value && categoryIds.length > 0) {
+      // Get the first category name
+      const firstCategoryId = categoryIds[0];
+      const categoryTreeItem = categoryTreeGetters.findCategoryById(categoryTree.value, firstCategoryId);
+      if (categoryTreeItem) {
+        productCategory = categoryTreeGetters.getName(categoryTreeItem) || '';
+      }
+
+      // Generate breadcrumbs for all categories to get paths
+      categoryIds.forEach((categoryId) => {
+        const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
+          categoryTree.value,
+          categoryId,
+        );
+        // Extract category names from breadcrumb (excluding home)
+        const categoryNames = breadcrumb
+          .filter((item) => item.link !== '/')
+          .map((item) => item.name)
+          .filter(Boolean);
+        if (categoryNames.length > 0) {
+          categoryPaths.push(categoryNames.join(';'));
+        }
+      });
+    }
+
+    // Fallback to category ID if name not found
+    if (!productCategory && categoryIds.length > 0) {
+      productCategory = categoryIds[0]?.toString() || '';
+    }
+
     const variants: string[] = [];
 
     // Extract variants from variationProperties
@@ -160,7 +196,7 @@ export const useUptainData = () => {
       'product-tags': tags.join(';'),
       'product-variants': variants.join(';'),
       'product-category': productCategory,
-      'product-category-paths': categoryPaths,
+      'product-category-paths': categoryPaths.join(';'),
     };
   };
 
