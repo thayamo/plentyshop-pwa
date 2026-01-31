@@ -1,8 +1,12 @@
 import { defineNuxtPlugin, useHead } from 'nuxt/app';
 
 const headerCss = `
+:root {
+  --header-height: 120px;
+}
+
 .fixed-header {
-  position: fixed;
+  position: sticky;
   top: 0;
   overflow: hidden;
   width: calc(100% - 2em);

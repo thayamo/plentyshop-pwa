@@ -7,6 +7,7 @@
         { 'md:mb-8': heading },
         heading ? 'md:max-w-[630px]' : 'md:max-w-[677px]',
       ]"
+      style="margin-top: calc(-1 * var(--header-height, 120px)); padding-top: var(--header-height, 120px);"
     >
       <h1 v-if="heading" class="font-bold mb-10 typography-headline-3 md:typography-headline-2">{{ heading }}</h1>
       <slot />

@@ -4,7 +4,7 @@
     <NarrowContainer v-if="breadcrumbs?.length" class="p-4 md:px-0">
       <LazyUiBreadcrumbs :breadcrumbs="breadcrumbs" />
     </NarrowContainer>
-    <main>
+    <main style="margin-top: calc(-1 * var(--header-height, 120px)); padding-top: var(--header-height, 120px);">
       <slot />
     </main>
     <UiNavbarBottom v-if="viewport.isLessThan('lg')" />
