@@ -6,7 +6,7 @@
     <!-- Warning Message -->
     <div
       v-if="hasChanges"
-      style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em; background-color: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3);"
+      style="position: sticky; top: 1em; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 1.75em; padding: 1em; border-radius: 0.5em; background-color: rgb(76 54 0); z-index: 10;"
     >
       <p style="color: #fbbf24; font-size: 0.875rem; margin: 0;">
         ⚠️ {{ getEditorTranslation('redeployWarning') }}
