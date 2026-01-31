@@ -160,7 +160,7 @@ export const useUptainData = () => {
       const shippingAddress = getShipping(shippingAddressId) || 
         shippingAddresses.value.find((addr: any) => addr.id === shippingAddressId);
       if (shippingAddress) {
-        const postalCode = userAddressGetters.getPostalCode(shippingAddress);
+        const postalCode = userAddressGetters.getPostCode(shippingAddress);
         if (postalCode) {
           postalCodeParts.push(postalCode);
         }
@@ -171,7 +171,7 @@ export const useUptainData = () => {
       const billingAddress = getBilling(billingAddressId) || 
         billingAddresses.value.find((addr: any) => addr.id === billingAddressId);
       if (billingAddress) {
-        const postalCode = userAddressGetters.getPostalCode(billingAddress);
+        const postalCode = userAddressGetters.getPostCode(billingAddress);
         if (postalCode && !postalCodeParts.includes(postalCode)) {
           postalCodeParts.push(postalCode);
         }
@@ -203,7 +203,7 @@ export const useUptainData = () => {
         cart.value.methodOfPaymentId
       );
       if (paymentMethod) {
-        paymentName = paymentProviderGetters.getPaymentMethodName(paymentMethod) || '';
+        paymentName = paymentProviderGetters.getName(paymentMethod) || '';
       }
     }
 
@@ -245,16 +245,21 @@ export const useUptainData = () => {
     if (categoryTree.value && categoryIds.length > 0) {
       // Get the first category name
       const firstCategoryId = categoryIds[0];
-      const categoryTreeItem = categoryTreeGetters.findCategoryById(categoryTree.value, firstCategoryId);
-      if (categoryTreeItem) {
-        productCategory = categoryTreeGetters.getName(categoryTreeItem) || '';
+      const categoryIdNumber = typeof firstCategoryId === 'string' ? parseInt(firstCategoryId, 10) : firstCategoryId;
+      if (!isNaN(categoryIdNumber)) {
+        const categoryTreeItem = categoryTreeGetters.findCategoryById(categoryTree.value, categoryIdNumber);
+        if (categoryTreeItem) {
+          productCategory = categoryTreeGetters.getName(categoryTreeItem) || '';
+        }
       }
 
       // Generate breadcrumbs for all categories to get paths
       categoryIds.forEach((categoryId) => {
+        const categoryIdNumber = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId;
+        if (isNaN(categoryIdNumber)) return;
         const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
           categoryTree.value,
-          categoryId,
+          categoryIdNumber,
         );
         // Extract category names from breadcrumb (excluding home)
         const categoryNames = breadcrumb
@@ -320,16 +325,16 @@ export const useUptainData = () => {
     const { data: categoryTree } = useCategoryTree();
     let categoryPath = '';
     if (categoryTree.value) {
-      const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
-        categoryTree.value,
-        categoryGetters.getId(category),
-      );
-      // Extract category names from breadcrumb (excluding home)
-      const categoryNames = breadcrumb
-        .filter((item) => item.link !== '/')
-        .map((item) => item.name)
-        .filter(Boolean);
-      categoryPath = categoryNames.join(';');
+      const categoryId = categoryGetters.getId(category);
+      const categoryIdNumber = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId;
+      if (!isNaN(categoryIdNumber)) {
+        // Extract category names from breadcrumb (excluding home)
+        const categoryNames = breadcrumb
+          .filter((item) => item.link !== '/')
+          .map((item) => item.name)
+          .filter(Boolean);
+        categoryPath = categoryNames.join(';');
+      }
     }
 
     // Get products on the category page
@@ -518,8 +523,8 @@ export const useUptainData = () => {
         });
 
         // Check if there are more pages
-        const totalPages = ordersData.data?.totals?.pages || 1;
-        if (page >= totalPages) {
+        const lastPageNumber = ordersData.data?.lastPageNumber || 1;
+        if (page >= lastPageNumber) {
           hasMorePages = false;
         } else {
           page++;
