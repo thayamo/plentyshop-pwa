@@ -1,5 +1,5 @@
 import { defineNuxtPlugin, useRoute } from 'nuxt/app';
-import { onMounted, watch } from 'vue';
+import { nextTick, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
 import { useProduct } from '~/composables/useProduct/useProduct';
 import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
@@ -116,88 +116,90 @@ export default defineNuxtPlugin(() => {
     return uptainCookieGroup?.accepted ?? false;
   };
 
-  // Load script on mount if cookies are not blocked or consent is given
+  // Load script on client and keep it in sync with settings/route
   if (process.client) {
-    onMounted(() => {
-      const syncUptainScript = async () => {
+    const syncUptainScript = async () => {
+      const enabled = isSettingEnabled(getUptainEnabled());
+      const uptainId = getValidUptainId();
+      const shouldBlock = shouldBlockCookies();
+      const hasConsent = checkCookieConsent();
+
+      // Debug logging
+      console.log('[Uptain] Sync - Enabled:', enabled, 'ID set:', !!uptainId, 'Should block:', shouldBlock, 'Has consent:', hasConsent);
+
+      if (enabled && uptainId && (!shouldBlock || hasConsent)) {
+        await loadUptainScript();
+      } else {
+        removeUptainScript();
+      }
+    };
+
+    const scheduleSync = () => {
+      void nextTick().then(() => syncUptainScript());
+    };
+
+    // Watch for Uptain enabled/disabled, ID or cookie group changes
+    watch(
+      [() => getUptainEnabled(), () => getUptainId(), () => getUptainCookieGroup(), () => shouldBlockCookies()],
+      () => {
+        scheduleSync();
+      },
+      { immediate: true },
+    );
+
+    // Watch for cookie consent changes
+    watch(
+      () => cookieGroups.value,
+      () => {
+        scheduleSync();
+      },
+      { deep: true },
+    );
+
+    // Watch for route changes to update data
+    watch(
+      () => route.path,
+      async () => {
         const enabled = isSettingEnabled(getUptainEnabled());
         const uptainId = getValidUptainId();
-        const shouldBlock = shouldBlockCookies();
-        const hasConsent = checkCookieConsent();
-
-        // Debug logging
-        console.log('[Uptain] Sync - Enabled:', enabled, 'ID set:', !!uptainId, 'Should block:', shouldBlock, 'Has consent:', hasConsent);
-
-        if (enabled && uptainId && (!shouldBlock || hasConsent)) {
-          await loadUptainScript();
-        } else {
+        if (!enabled || !uptainId) {
           removeUptainScript();
+          return;
         }
-      };
-
-      // Watch for Uptain enabled/disabled, ID or cookie group changes
-      watch(
-        [() => getUptainEnabled(), () => getUptainId(), () => getUptainCookieGroup(), () => shouldBlockCookies()],
-        () => {
-          syncUptainScript();
-        },
-        { immediate: true },
-      );
-
-      // Watch for cookie consent changes
-      watch(
-        () => cookieGroups.value,
-        () => {
-          syncUptainScript();
-        },
-        { deep: true },
-      );
-
-      // Watch for route changes to update data
-      watch(
-        () => route.path,
-        async () => {
-          const enabled = isSettingEnabled(getUptainEnabled());
-          const uptainId = getValidUptainId();
-          if (!enabled || !uptainId) {
-            removeUptainScript();
-            return;
-          }
-          if (!shouldBlockCookies() || checkCookieConsent()) {
-            // Get product if on product page
-            let product = null;
-            if (route.path.includes('/product/')) {
-              const slug = route.params.slug as string;
-              if (slug) {
-                const { data: productData } = useProduct(slug);
-                product = productData.value;
-              }
+        if (!shouldBlockCookies() || checkCookieConsent()) {
+          // Get product if on product page
+          let product = null;
+          if (route.path.includes('/product/')) {
+            const slug = route.params.slug as string;
+            if (slug) {
+              const { data: productData } = useProduct(slug);
+              product = productData.value;
             }
-            
-            // Update script with new data
-            const currentScript = document.getElementById('__up_data_qp');
-            if (currentScript) {
-              const data = await getAllData(product);
-              if (data) {
-                Object.entries(data).forEach(([key, value]) => {
-                  if (value && value !== '') {
-                    currentScript.setAttribute(`data-${key}`, String(value));
-                  } else {
-                    currentScript.removeAttribute(`data-${key}`);
-                  }
-                });
-                // Trigger data read
-                if (window._upEventBus) {
-                  window._upEventBus.publish('uptain.readData');
+          }
+          
+          // Update script with new data
+          const currentScript = document.getElementById('__up_data_qp');
+          if (currentScript) {
+            const data = await getAllData(product);
+            if (data) {
+              Object.entries(data).forEach(([key, value]) => {
+                if (value && value !== '') {
+                  currentScript.setAttribute(`data-${key}`, String(value));
+                } else {
+                  currentScript.removeAttribute(`data-${key}`);
                 }
+              });
+              // Trigger data read
+              if (window._upEventBus) {
+                window._upEventBus.publish('uptain.readData');
               }
-            } else {
-              await loadUptainScript();
             }
+          } else {
+            await loadUptainScript();
           }
-        },
-      );
-    });
+        }
+      },
+    );
   }
 });
 
