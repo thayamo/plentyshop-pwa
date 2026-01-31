@@ -231,6 +231,7 @@ export default defineNuxtConfig({
       manufacturerFaxNumber: process.env.NUXT_PUBLIC_MANUFACTURER_FAX_NUMBER || '0',
       manufacturerEmail: process.env.NUXT_PUBLIC_MANUFACTURER_EMAIL || '0',
       manufacturerContactUrl: process.env.NUXT_PUBLIC_MANUFACTURER_CONTACT_URL || '0',
+      uptainId: process.env.NUXT_PUBLIC_UPTAIN_ID || 'XXXXXXXXXXXXXXXX',
     },
   },
   modules: [
@@ -239,6 +240,7 @@ export default defineNuxtConfig({
     '@plentymarkets/shop-module-gtag',
     './modules/custom-header',
     './modules/custom-carousel',
+    './modules/uptain',
     '@nuxt/eslint',
     '@nuxt/fonts',
     '@nuxt/image',
