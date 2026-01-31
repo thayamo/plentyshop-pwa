@@ -3,6 +3,16 @@
     class="space-y-4"
     style="background: #111111; color: #fff; height: 100%; margin-inline: -1rem; margin-block: -0.5em; padding: 1rem;"
   >
+    <!-- Warning Message -->
+    <div
+      v-if="hasChanges"
+      style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em; background-color: rgba(251, 191, 36, 0.1); border-color: rgba(251, 191, 36, 0.3);"
+    >
+      <p style="color: #fbbf24; font-size: 0.875rem; margin: 0;">
+        ⚠️ {{ getEditorTranslation('redeployWarning') }}
+      </p>
+    </div>
+
     <!-- Uptain Logo -->
     <div
       class="w-full"
@@ -62,15 +72,6 @@
       >
         {{ getEditorTranslation('basicSettingsLabel') }}
       </div>
-      <!-- Block cookies initially -->
-      <div class="flex justify-between">
-        <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
-        <SfSwitch
-          v-model="blockCookiesInitially"
-          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-        />
-      </div>
-
       <!-- Transmit personal data for newsletter subscribers -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitNewsletterData.label') }}</UiFormLabel>
@@ -126,6 +127,15 @@
             data-testid="uptain-cookie-group"
           />
         </label>
+      </div>
+
+      <!-- Block cookies initially -->
+      <div class="flex justify-between">
+        <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
+        <SfSwitch
+          v-model="blockCookiesInitially"
+          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+        />
       </div>
 
       <!-- Register Cookie as opt-out -->
@@ -219,6 +229,27 @@ const registerCookieAsOptOut = computed({
   get: () => getRegisterCookieAsOptOut() === 'true',
   set: (value) => updateRegisterCookieAsOptOut(value.toString()),
 });
+
+// Track changes to show warning
+const hasChanges = ref(false);
+
+// Watch all settings for changes
+watch(
+  [
+    () => getUptainEnabled(),
+    () => getSetting(),
+    () => getBlockCookies(),
+    () => getNewsletterData(),
+    () => getCustomerData(),
+    () => getRevenue(),
+    () => getCookieGroup(),
+    () => getRegisterCookieAsOptOut(),
+  ],
+  () => {
+    hasChanges.value = true;
+  },
+  { deep: true },
+);
 </script>
 
 <i18n lang="json">
@@ -238,6 +269,7 @@ const registerCookieAsOptOut = computed({
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
+    "redeployWarning": "This group of settings will require a shop redeploy to take effect.",
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Enter your Uptain tracking ID",
@@ -271,6 +303,7 @@ const registerCookieAsOptOut = computed({
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
+    "redeployWarning": "Diese Gruppe von Einstellungen erfordert ein erneutes Deployment des Shops, um wirksam zu werden.",
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Geben Sie Ihre Uptain Tracking-ID ein",
