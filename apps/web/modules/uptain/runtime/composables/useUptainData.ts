@@ -6,7 +6,7 @@ export const useUptainData = () => {
   const runtimeConfig = useRuntimeConfig();
   const { data: cart } = useCart();
   const { user, isAuthorized } = useCustomer();
-  const { wishlistItemIds } = useWishlist();
+  const { wishlistItemIds, data: wishlistData } = useWishlist();
   const { getSetting } = useSiteSettings('uptainId');
   const { getSetting: getBlockCookies } = useSiteSettings('uptainBlockCookiesInitially');
   const { getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
@@ -43,8 +43,41 @@ export const useUptainData = () => {
   };
 
   const getWishlistData = (): string => {
-    // TODO: Implement wishlist data collection
-    return '{}';
+    if (!wishlistData.value || wishlistData.value.length === 0) {
+      return '{}';
+    }
+
+    const wishlistProducts: Record<string, any> = {};
+
+    wishlistData.value.forEach((wishlistItem: any) => {
+      // WishlistItem has a variation property that contains product data
+      const variation = wishlistItem.variation;
+      if (!variation) return;
+
+      const productId = productGetters.getId(variation)?.toString() || '';
+      if (productId) {
+        const productName = productGetters.getName(variation) || '';
+        
+        // Get variants from variationProperties
+        const variationProperties = variation.variationProperties || [];
+        const variants = variationProperties
+          .flatMap((group: any) => group.properties || [])
+          .map((prop: any) => {
+            const name = prop.names?.name || '';
+            const value = prop.values?.value || '';
+            return name && value ? `${name}:${value}` : '';
+          })
+          .filter(Boolean)
+          .join(';');
+
+        wishlistProducts[productId] = {
+          name: productName,
+          variants: variants || '',
+        };
+      }
+    });
+
+    return JSON.stringify(wishlistProducts);
   };
 
   const getComparisonData = (): string => {
