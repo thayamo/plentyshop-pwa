@@ -7,9 +7,14 @@ import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
 export default defineNuxtPlugin(() => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
+  const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
   
   // Get cookie groups - useCookieBar is auto-imported
   const { cookieGroups } = useCookieBar();
+
+  // Check if Uptain is enabled
+  const isUptainEnabled = getUptainEnabled() === 'true';
+  if (!isUptainEnabled) return;
 
   const uptainId = getUptainId();
   if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
@@ -85,6 +90,25 @@ export default defineNuxtPlugin(() => {
   // Load script on mount if cookies are not blocked or consent is given
   if (process.client) {
     onMounted(() => {
+      // Watch for Uptain enabled/disabled changes
+      watch(
+        () => getUptainEnabled(),
+        (enabled) => {
+          if (enabled === 'true') {
+            if (!shouldBlockCookies() || checkCookieConsent()) {
+              loadUptainScript();
+            }
+          } else {
+            // Remove script if disabled
+            const existingScript = document.getElementById('__up_data_qp');
+            if (existingScript) {
+              existingScript.remove();
+            }
+          }
+        },
+        { immediate: true },
+      );
+
       if (!shouldBlockCookies() || checkCookieConsent()) {
         loadUptainScript();
       }
@@ -94,7 +118,7 @@ export default defineNuxtPlugin(() => {
         watch(
           () => cookieGroups.value,
           () => {
-            if (checkCookieConsent()) {
+            if (getUptainEnabled() === 'true' && checkCookieConsent()) {
               loadUptainScript();
             }
           },
@@ -106,6 +130,7 @@ export default defineNuxtPlugin(() => {
       watch(
         () => route.path,
         () => {
+          if (getUptainEnabled() !== 'true') return;
           if (!shouldBlockCookies() || checkCookieConsent()) {
             // Get product if on product page
             let product = null;

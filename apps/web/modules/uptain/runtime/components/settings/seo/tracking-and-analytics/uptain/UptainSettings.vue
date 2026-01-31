@@ -18,6 +18,20 @@
       </div>
     </div>
 
+    <!-- Enable/Disable Uptain -->
+    <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
+      <div class="flex justify-between">
+        <div>
+          <UiFormLabel class="mb-1">{{ getEditorTranslation('enableUptain.label') }}</UiFormLabel>
+          <p class="text-sm text-neutral-500">{{ getEditorTranslation('enableUptain.description') }}</p>
+        </div>
+        <SfSwitch
+          v-model="uptainEnabled"
+          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+        />
+      </div>
+    </div>
+
     <!-- Uptain ID -->
     <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
       <div
@@ -85,6 +99,45 @@
       </div>
     </div>
 
+    <!-- Cookie Settings -->
+    <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;" class="space-y-4">
+      <div
+        style="position: absolute; top: 0; left: 0.5em; z-index: 1; transform: translateY(-50%); padding: 0 0.5em; background: #111; font-size: 0.875em; color: #696969;"
+      >
+        {{ getEditorTranslation('cookieSettingsLabel') }}
+      </div>
+      
+      <!-- Cookie Group -->
+      <div>
+        <div class="flex justify-between mb-2">
+          <UiFormLabel>{{ getEditorTranslation('cookieGroup.label') }}</UiFormLabel>
+        </div>
+        <label>
+          <Multiselect
+            v-model="uptainCookieGroup"
+            :options="cookieGroupOptions"
+            :placeholder="getEditorTranslation('cookieGroup.placeholder')"
+            :searchable="false"
+            :allow-empty="false"
+            label="label"
+            track-by="value"
+            select-label=""
+            deselect-label=""
+            data-testid="uptain-cookie-group"
+          />
+        </label>
+      </div>
+
+      <!-- Register Cookie as opt-out -->
+      <div class="flex justify-between">
+        <UiFormLabel class="mb-1">{{ getEditorTranslation('registerCookieAsOptOut.label') }}</UiFormLabel>
+        <SfSwitch
+          v-model="registerCookieAsOptOut"
+          class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+        />
+      </div>
+    </div>
+
     <!-- Registration CTA -->
     <div style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
       <h3 style="color: rgb(48, 187, 181); font-size: 0.9rem; font-weight: 600; margin-bottom: 0.5em;">
@@ -108,12 +161,23 @@
 </template>
 <script setup lang="ts">
 import { SfInput, SfIconInfo, SfTooltip, SfSwitch } from '@storefront-ui/vue';
+import Multiselect from 'vue-multiselect';
+import type { SettingOption } from '~/utils/editorSettings';
+import { getCookieGroupOptions } from '~/utils/editorSettings';
 
+const { updateSetting: updateUptainEnabled, getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
 const { updateSetting, getSetting } = useSiteSettings('uptainId');
 const { updateSetting: updateBlockCookies, getSetting: getBlockCookies } = useSiteSettings('uptainBlockCookiesInitially');
 const { updateSetting: updateNewsletterData, getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
 const { updateSetting: updateCustomerData, getSetting: getCustomerData } = useSiteSettings('uptainTransmitCustomerData');
 const { updateSetting: updateRevenue, getSetting: getRevenue } = useSiteSettings('uptainTransmitRevenue');
+const { updateSetting: updateCookieGroup, getSetting: getCookieGroup } = useSiteSettings('uptainCookieGroup');
+const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
+
+const uptainEnabled = computed({
+  get: () => getUptainEnabled() === 'true',
+  set: (value) => updateUptainEnabled(value.toString()),
+});
 
 const uptainId = computed({
   get: () => getSetting(),
@@ -139,6 +203,22 @@ const transmitRevenue = computed({
   get: () => getRevenue() === 'true',
   set: (value) => updateRevenue(value.toString()),
 });
+
+const cookieGroupOptions = computed(() => getCookieGroupOptions());
+
+const uptainCookieGroup = computed({
+  get: () => {
+    return cookieGroupOptions.value.find((o: SettingOption) => o.value === getCookieGroup());
+  },
+  set: (option) => {
+    updateCookieGroup(option?.value ?? '');
+  },
+});
+
+const registerCookieAsOptOut = computed({
+  get: () => getRegisterCookieAsOptOut() === 'true',
+  set: (value) => updateRegisterCookieAsOptOut(value.toString()),
+});
 </script>
 
 <i18n lang="json">
@@ -146,6 +226,18 @@ const transmitRevenue = computed({
   "en": {
     "accountLabel": "Uptain Account",
     "basicSettingsLabel": "Basic Settings",
+    "enableUptain": {
+      "label": "Enable Uptain Tracking",
+      "description": "Activate or deactivate the Uptain tracking script. When disabled, no scripts will be loaded."
+    },
+    "cookieSettingsLabel": "Cookie Settings",
+    "cookieGroup": {
+      "label": "Cookie Group",
+      "placeholder": "Select Cookie Group"
+    },
+    "registerCookieAsOptOut": {
+      "label": "Register Cookie as opt-out"
+    },
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Enter your Uptain tracking ID",
@@ -167,6 +259,18 @@ const transmitRevenue = computed({
   "de": {
     "accountLabel": "Uptain Konto",
     "basicSettingsLabel": "Grundeinstellungen",
+    "enableUptain": {
+      "label": "Uptain Tracking aktivieren",
+      "description": "Aktivieren oder deaktivieren Sie das Uptain Tracking-Script. Wenn deaktiviert, werden keine Scripts geladen."
+    },
+    "cookieSettingsLabel": "Cookie-Einstellungen",
+    "cookieGroup": {
+      "label": "Cookie Group",
+      "placeholder": "Cookie Group auswählen"
+    },
+    "registerCookieAsOptOut": {
+      "label": "Register Cookie as opt-out"
+    },
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Geben Sie Ihre Uptain Tracking-ID ein",
