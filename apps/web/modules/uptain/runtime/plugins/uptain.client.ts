@@ -2,6 +2,7 @@ import { defineNuxtPlugin, useRoute } from 'nuxt/app';
 import { nextTick, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
 import { useProduct } from '~/composables/useProduct/useProduct';
+import { createProductParams } from '~/utils/productHelper';
 import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
 
 export default defineNuxtPlugin(() => {
@@ -105,10 +106,34 @@ export default defineNuxtPlugin(() => {
     // Get product if on product page
     let product = null;
     if (process.client && route.path.includes('/product/')) {
-      const slug = route.params.slug as string;
-      if (slug) {
-        const { data: productData } = useProduct(slug);
-        product = productData.value;
+      // Extract productId from route params (itemId contains the product ID)
+      const itemId = route.params.itemId as string;
+      if (itemId) {
+        const { productParams } = createProductParams(route.params);
+        const productId = productParams.id.toString();
+        if (productId) {
+          // Try multiple sources for product data
+          const { currentProduct } = useProducts();
+          const { productForEditor, data: productData } = useProduct(productId);
+          
+          // Priority: currentProduct > productForEditor > data
+          product = currentProduct.value && Object.keys(currentProduct.value).length > 0
+            ? currentProduct.value
+            : (productForEditor.value && Object.keys(productForEditor.value).length > 0
+              ? productForEditor.value
+              : (productData.value && Object.keys(productData.value).length > 0
+                ? productData.value
+                : null));
+          
+          if (product) {
+            console.log('[Uptain] Product found:', product ? 'exists' : 'null', 'source:', 
+              currentProduct.value && Object.keys(currentProduct.value).length > 0 ? 'currentProduct' :
+              productForEditor.value && Object.keys(productForEditor.value).length > 0 ? 'productForEditor' : 'data');
+          } else {
+            console.warn('[Uptain] Product not found, currentProduct:', currentProduct.value, 
+              'productForEditor:', productForEditor.value, 'data:', productData.value);
+          }
+        }
       }
     }
     
@@ -345,6 +370,33 @@ export default defineNuxtPlugin(() => {
       },
     );
 
+    // Helper function to get product data
+    const getProductFromState = () => {
+      if (!route.path.includes('/product/')) return null;
+      
+      // Try to get product from useProducts first (set on product page)
+      const { currentProduct } = useProducts();
+      if (currentProduct.value && Object.keys(currentProduct.value).length > 0) {
+        return currentProduct.value;
+      }
+      
+      // Fallback: Extract productId from route params (itemId contains the product ID)
+      const itemId = route.params.itemId as string;
+      if (itemId) {
+        const { productParams } = createProductParams(route.params);
+        const productId = productParams.id.toString();
+        if (productId) {
+          const { productForEditor, data: productData } = useProduct(productId);
+          // Use productForEditor if available, otherwise fall back to data
+          return productForEditor.value && Object.keys(productForEditor.value).length > 0 
+            ? productForEditor.value 
+            : (productData.value && Object.keys(productData.value).length > 0 ? productData.value : null);
+        }
+      }
+      
+      return null;
+    };
+
     // Watch for route changes to update data
     watch(
       () => route.path,
@@ -356,15 +408,7 @@ export default defineNuxtPlugin(() => {
           return;
         }
         if (!shouldBlockCookies() || checkCookieConsent()) {
-          // Get product if on product page
-          let product = null;
-          if (route.path.includes('/product/')) {
-            const slug = route.params.slug as string;
-            if (slug) {
-              const { data: productData } = useProduct(slug);
-              product = productData.value;
-            }
-          }
+          const product = getProductFromState();
           
           // Update script with new data
           const currentScript = document.getElementById('__up_data_qp');
@@ -410,6 +454,48 @@ export default defineNuxtPlugin(() => {
         }
       },
     );
+
+    // Listen to productLoaded event to update product data
+    if (process.client) {
+      const { on: onPlentyEvent } = usePlentyEvent();
+      
+      onPlentyEvent('frontend:productLoaded', async (eventData: { product: any }) => {
+        const product = eventData?.product;
+        if (!product || Object.keys(product).length === 0) {
+          console.warn('[Uptain] frontend:productLoaded event received but product is empty');
+          return;
+        }
+        
+        const enabled = isSettingEnabled(getUptainEnabled());
+        const uptainId = getValidUptainId();
+        if (!enabled || !uptainId) return;
+        if (!shouldBlockCookies() || !checkCookieConsent()) return;
+        
+        console.log('[Uptain] frontend:productLoaded event received, updating script data', product);
+        const currentScript = document.getElementById('__up_data_qp');
+        if (currentScript) {
+          const data = await getAllData(product);
+          if (data) {
+            // Update product-related attributes
+            Object.entries(data).forEach(([key, value]) => {
+              if (key.startsWith('product-') && value && value !== '') {
+                currentScript.setAttribute(`data-${key}`, String(value));
+                console.log('[Uptain] Set product attribute:', key, value);
+              }
+            });
+            
+            logScriptData(currentScript);
+            // Trigger data read
+            if (window._upEventBus) {
+              window._upEventBus.publish('uptain.readData');
+            }
+          }
+        } else {
+          // Script doesn't exist yet, reload it
+          await loadUptainScript();
+        }
+      });
+    }
   }
 });
 

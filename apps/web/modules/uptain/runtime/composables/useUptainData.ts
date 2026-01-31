@@ -27,7 +27,16 @@ export const useUptainData = () => {
 
   const getPageType = (): string => {
     const path = route.path;
-    if (path.includes('/product/')) return 'product';
+    
+    // Home page check must come first to avoid being misidentified as category
+    if (path === '/' || path === '') return 'home';
+    
+    // Product page check must come before category check
+    // Product pages have /product/ in path and route.meta.type === 'product'
+    if (path.includes('/product/') || route.meta?.type === 'product') {
+      return 'product';
+    }
+    
     if (path.includes('/cart')) return 'cart';
     if (path.includes('/checkout')) return 'checkout';
     if (path.includes('/confirmation/')) return 'success';
@@ -37,18 +46,19 @@ export const useUptainData = () => {
     // Check if we're on a category page
     // Category pages are handled by [...slug].vue and have type: 'category' in route.meta
     // Also check if productsCatalog has category data as fallback
+    // But exclude home and product pages which were already checked above
     if (route.meta?.type === 'category') {
       return 'category';
     }
     
     // Fallback: Check if productsCatalog has category data
     // This handles cases where route.meta.type might not be set yet
+    // But exclude home and product pages which were already checked above
     const { data: productsCatalog } = useProducts();
-    if (productsCatalog.value?.category) {
+    if (productsCatalog.value?.category && route.meta?.type !== 'product') {
       return 'category';
     }
     
-    if (path === '/' || path === '') return 'home';
     return 'other';
   };
 
@@ -268,7 +278,16 @@ export const useUptainData = () => {
   };
 
   const getProductData = (product: Product | null) => {
-    if (!product) return null;
+    if (!product) {
+      console.warn('[Uptain] getProductData: product is null or undefined');
+      return null;
+    }
+    
+    // Check if product has actual data (not just an empty object)
+    if (Object.keys(product).length === 0) {
+      console.warn('[Uptain] getProductData: product is an empty object');
+      return null;
+    }
 
     const productId = productGetters.getId(product)?.toString() || '';
     const productName = productGetters.getName(product) || '';
