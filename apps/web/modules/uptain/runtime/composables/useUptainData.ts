@@ -333,14 +333,41 @@ export const useUptainData = () => {
   };
 
   const getSearchData = () => {
-    const searchTerm = route.query.q as string || '';
+    const searchTerm = route.query.term as string || route.query.q as string || '';
     if (!searchTerm) return null;
 
-    // TODO: Get search products from route/state
+    // Get search products from useSearch composable
+    const { data: productsCatalog } = useSearch();
+    const searchProducts: Record<string, any> = {};
+    
+    if (productsCatalog.value?.products) {
+      productsCatalog.value.products.forEach((product: Product) => {
+        const productId = productGetters.getId(product)?.toString() || '';
+        if (productId) {
+          const productName = productGetters.getName(product) || '';
+          const productPrice = productGetters.getPrice(product) || 0;
+          const originalPrice = productGetters.getCrossedPrice(product) || productPrice;
+          const productImage = productGetters.getCoverImage(product) || '';
+
+          searchProducts[productId] = {
+            name: productName,
+            price: formatPrice(productPrice),
+            'original-price': formatPrice(originalPrice),
+            image: productImage,
+          };
+        }
+      });
+    }
+
+    // Get sorting from URL
+    const { getFacetsFromURL } = useCategoryFilter();
+    const facets = getFacetsFromURL();
+    const searchSorting = facets.sort || 'default';
+
     return {
       'search-term': searchTerm,
-      'search-products': '{}',
-      'search-sorting': 'default',
+      'search-products': JSON.stringify(searchProducts),
+      'search-sorting': searchSorting,
     };
   };
 
