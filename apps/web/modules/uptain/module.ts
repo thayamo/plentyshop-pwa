@@ -9,6 +9,8 @@ export default defineNuxtModule({
 
     // Add server-side plugin for cookie registration (before cookie bar is shown)
     addPlugin(resolver.resolve('./runtime/plugins/uptain-cookie-registration.server'));
+    // Add i18n messages for cookie texts
+    addPlugin(resolver.resolve('./runtime/plugins/uptain-i18n'));
     // Add client-side plugin for script loading
     addPlugin(resolver.resolve('./runtime/plugins/uptain.client'));
     addComponentsDir({
