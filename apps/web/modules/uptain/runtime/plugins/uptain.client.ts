@@ -9,6 +9,7 @@ export default defineNuxtPlugin(() => {
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
   const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
+  const { getSetting: getDebugMode } = useSiteSettings('uptainDebugMode');
   const runtimeConfig = useRuntimeConfig();
   
   // Get cookie groups - useCookieBar is auto-imported
@@ -42,13 +43,31 @@ export default defineNuxtPlugin(() => {
 
     const attributes = script.getAttributeNames().filter((name) => name.startsWith('data-'));
     if (attributes.length === 0) {
-      console.log('[Uptain Debug] No data-* attributes found on script.');
       return;
     }
+
+    const extraTables: Array<{ title: string; rows: Array<Record<string, unknown>> }> = [];
 
     const rows = attributes.map((attr) => {
       const value = script.getAttribute(attr) ?? '';
       const key = attr.replace(/^data-/, '');
+
+      if (key === 'category-products' && value) {
+        try {
+          const parsed = JSON.parse(value);
+          if (parsed && typeof parsed === 'object') {
+            const items = Object.entries(parsed).map(([id, data]) => ({
+              id,
+              ...(data as Record<string, unknown>),
+            }));
+            extraTables.push({ title: 'category-products', rows: items });
+            return { key, value: `[${items.length} items]` };
+          }
+        } catch {
+          // ignore parse errors
+        }
+      }
+
       return { key, value };
     });
 
@@ -58,7 +77,20 @@ export default defineNuxtPlugin(() => {
       'color:#9ca3af;',
     );
     console.table(rows);
+    extraTables.forEach(({ title, rows: tableRows }) => {
+      console.groupCollapsed(`%c${title}`, 'background:#111;color:#fbbf24;padding:2px 6px;border-radius:4px;');
+      console.table(tableRows);
+      console.groupEnd();
+    });
     console.groupEnd();
+  };
+
+  const setDebugFlag = () => {
+    if (typeof window === 'undefined') return;
+    window.__UPTAIN_DEBUG__ = isSettingEnabled(getDebugMode());
+    if (window.__UPTAIN_DEBUG__) {
+      logScriptData(document.getElementById('__up_data_qp'));
+    }
   };
 
   const loadUptainScript = async () => {
@@ -281,6 +313,14 @@ export default defineNuxtPlugin(() => {
       () => {
         scheduleSync();
         syncCookieOptOutState();
+      },
+      { immediate: true },
+    );
+
+    watch(
+      () => getDebugMode(),
+      () => {
+        setDebugFlag();
       },
       { immediate: true },
     );

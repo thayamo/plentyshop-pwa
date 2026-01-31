@@ -185,16 +185,28 @@
           />
         </div>
       </div>
-    </div>
 
-    <div class="flex justify-center">
-      <a
-        href="#"
-        style="display: flex; width: 100%; text-align: center; align-items: center; justify-content: center; color: rgb(79, 79, 79); font-size: 90%;"
-        @click.prevent="toggleDebugMode"
-      >
-        {{ isDebugActive ? getEditorTranslation('debugMode.deactivate') : getEditorTranslation('debugMode.activate') }}
-      </a>
+      <!-- Debug mode -->
+      <div class="flex justify-between">
+        <div>
+          <UiFormLabel class="mb-1">{{ getEditorTranslation('debugMode.label') }}</UiFormLabel>
+          <p class="text-sm text-neutral-500">{{ getEditorTranslation('debugMode.description') }}</p>
+        </div>
+        <div style="position: relative;">
+          <input
+            v-model.number="debugMode"
+            type="number"
+            min="0"
+            max="1"
+            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
+          />
+          <SfSwitch
+            :model-value="debugMode === 1"
+            @update:model-value="debugMode = $event ? 1 : 0"
+            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
+          />
+        </div>
+      </div>
     </div>
 
     <!-- Registration CTA -->
@@ -228,6 +240,7 @@ const { updateSetting: updateNewsletterData, getSetting: getNewsletterData } = u
 const { updateSetting: updateCustomerData, getSetting: getCustomerData } = useSiteSettings('uptainTransmitCustomerData');
 const { updateSetting: updateRevenue, getSetting: getRevenue } = useSiteSettings('uptainTransmitRevenue');
 const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
+const { updateSetting: updateDebugMode, getSetting: getDebugMode } = useSiteSettings('uptainDebugMode');
 
 const uptainEnabled = computed({
   get: () => {
@@ -315,39 +328,18 @@ const registerCookieAsOptOut = computed({
   },
 });
 
-const isDebugActive = ref(false);
-
-const toggleDebugMode = () => {
-  isDebugActive.value = !isDebugActive.value;
-  if (typeof window !== 'undefined') {
-    window.__UPTAIN_DEBUG__ = isDebugActive.value;
-  }
-  if (isDebugActive.value) {
-    logUptainData();
-  }
-};
-
-const logUptainData = () => {
-  if (typeof window === 'undefined') return;
-
-  const script = document.getElementById('__up_data_qp');
-  if (!script) {
-    console.log('[Uptain] No script element found (#__up_data_qp).');
-    return;
-  }
-
-  const attributes = script.getAttributeNames().filter((name) => name.startsWith('data-'));
-  if (attributes.length === 0) {
-    console.log('[Uptain] No data-* attributes found on script.');
-    return;
-  }
-
-  attributes.forEach((attr) => {
-    const value = script.getAttribute(attr) ?? '';
-    const key = attr.replace(/^data-/, '');
-    console.log(`${key}: "${value}"`);
-  });
-};
+const debugMode = computed({
+  get: () => {
+    const value = getDebugMode();
+    if (value === 'true' || value === '1') return 1;
+    if (value === 'false' || value === '0') return 0;
+    return Number(value) || 0;
+  },
+  set: (value) => {
+    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
+    updateDebugMode(numValue.toString());
+  },
+});
 
 // Track changes to show warning
 const hasChanges = ref(false);
@@ -362,6 +354,7 @@ watch(
     () => getCustomerData(),
     () => getRevenue(),
     () => getRegisterCookieAsOptOut(),
+    () => getDebugMode(),
   ],
   () => {
     hasChanges.value = true;
@@ -384,8 +377,8 @@ watch(
       "label": "Register Cookie as opt-out"
     },
     "debugMode": {
-      "activate": "Debug Modus aktivieren",
-      "deactivate": "Debug Modus deaktivieren"
+      "label": "Debug Mode",
+      "description": "Log Uptain script data on every change to the browser console."
     },
     "redeployWarning": "This group of settings will require a shop redeploy to take effect.",
     "uptainId": {
@@ -418,8 +411,8 @@ watch(
       "label": "Register Cookie as opt-out"
     },
     "debugMode": {
-      "activate": "Debug Modus aktivieren",
-      "deactivate": "Debug Modus deaktivieren"
+      "label": "Debug Modus",
+      "description": "Uptain Script-Daten bei jeder Änderung in der Browser-Konsole loggen."
     },
     "redeployWarning": "Diese Gruppe von Einstellungen erfordert ein erneutes Deployment des Shops, um wirksam zu werden.",
     "uptainId": {

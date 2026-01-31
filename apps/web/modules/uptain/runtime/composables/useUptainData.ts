@@ -6,7 +6,7 @@ export const useUptainData = () => {
   const runtimeConfig = useRuntimeConfig();
   const { data: cart } = useCart();
   const { user, isAuthorized } = useCustomer();
-  const { wishlistItemIds, data: wishlistData } = useWishlist();
+  const { wishlistItemIds, data: wishlistData, loading: wishlistLoading, fetchWishlist } = useWishlist();
   const { getSetting } = useSiteSettings('uptainId');
   const { getSetting: getBlockCookies } = useSiteSettings('uptainBlockCookiesInitially');
   const { getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
@@ -42,7 +42,18 @@ export const useUptainData = () => {
     return price.toFixed(2);
   };
 
-  const getWishlistData = (): string => {
+  const getWishlistData = async (): Promise<string> => {
+    if (!wishlistData.value || wishlistData.value.length === 0) {
+      // Try to fetch wishlist if we have IDs or the user is logged in
+      if (!wishlistLoading.value && (wishlistItemIds.value?.length || isAuthorized.value)) {
+        try {
+          await fetchWishlist();
+        } catch (error) {
+          console.warn('[Uptain] Failed to fetch wishlist:', error);
+        }
+      }
+    }
+
     if (!wishlistData.value || wishlistData.value.length === 0) {
       return '{}';
     }
@@ -594,7 +605,7 @@ export const useUptainData = () => {
       plugin: getPluginVersion(),
       returnurl: getReturnUrl(),
       page: getPageType(),
-      wishlist: getWishlistData(),
+      wishlist: await getWishlistData(),
       comparison: getComparisonData(),
     };
 
