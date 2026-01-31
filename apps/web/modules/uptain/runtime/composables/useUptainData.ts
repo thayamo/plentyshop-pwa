@@ -245,9 +245,9 @@ export const useUptainData = () => {
     if (categoryTree.value && categoryIds.length > 0) {
       // Get the first category name
       const firstCategoryId = categoryIds[0];
-      const categoryIdNumber = typeof firstCategoryId === 'string' ? parseInt(firstCategoryId, 10) : firstCategoryId;
-      if (!isNaN(categoryIdNumber)) {
-        const categoryTreeItem = categoryTreeGetters.findCategoryById(categoryTree.value, categoryIdNumber);
+      const firstCategoryIdNumber = typeof firstCategoryId === 'string' ? parseInt(firstCategoryId, 10) : firstCategoryId;
+      if (firstCategoryIdNumber !== undefined && !isNaN(firstCategoryIdNumber)) {
+        const categoryTreeItem = categoryTreeGetters.findCategoryById(categoryTree.value, firstCategoryIdNumber);
         if (categoryTreeItem) {
           productCategory = categoryTreeGetters.getName(categoryTreeItem) || '';
         }
@@ -256,15 +256,15 @@ export const useUptainData = () => {
       // Generate breadcrumbs for all categories to get paths
       categoryIds.forEach((categoryId) => {
         const categoryIdNumber = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId;
-        if (isNaN(categoryIdNumber)) return;
+        if (categoryIdNumber === undefined || isNaN(categoryIdNumber)) return;
         const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
           categoryTree.value,
           categoryIdNumber,
         );
         // Extract category names from breadcrumb (excluding home)
         const categoryNames = breadcrumb
-          .filter((item) => item.link !== '/')
-          .map((item) => item.name)
+          .filter((item: { link: string }) => item.link !== '/')
+          .map((item: { name: string }) => item.name)
           .filter(Boolean);
         if (categoryNames.length > 0) {
           categoryPaths.push(categoryNames.join(';'));
@@ -327,11 +327,15 @@ export const useUptainData = () => {
     if (categoryTree.value) {
       const categoryId = categoryGetters.getId(category);
       const categoryIdNumber = typeof categoryId === 'string' ? parseInt(categoryId, 10) : categoryId;
-      if (!isNaN(categoryIdNumber)) {
+      if (categoryIdNumber !== undefined && !isNaN(categoryIdNumber)) {
+        const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
+          categoryTree.value,
+          categoryIdNumber,
+        );
         // Extract category names from breadcrumb (excluding home)
         const categoryNames = breadcrumb
-          .filter((item) => item.link !== '/')
-          .map((item) => item.name)
+          .filter((item: { link: string }) => item.link !== '/')
+          .map((item: { name: string }) => item.name)
           .filter(Boolean);
         categoryPath = categoryNames.join(';');
       }
