@@ -1,13 +1,15 @@
 import { defineNuxtPlugin, useRoute } from 'nuxt/app';
 import { onMounted, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
-import { useCookieBar } from '@plentymarkets/shop-core';
 import { useProduct } from '~/composables/useProduct/useProduct';
+import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
 
 export default defineNuxtPlugin(() => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
-  const { cookieGroups } = useCookieBar();
   const route = useRoute();
+  
+  // Get cookie groups - useCookieBar is auto-imported
+  const { cookieGroups } = useCookieBar();
 
   const uptainId = getUptainId();
   if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
@@ -73,8 +75,8 @@ export default defineNuxtPlugin(() => {
     // Check if uptain cookie group is accepted
     // Assuming uptain would be in a functional or analytics cookie group
     // This needs to be configured in cookie.config.ts
-    const uptainCookieGroup = cookieGroups.value?.find((group) =>
-      group.cookies?.some((cookie) => cookie.name?.includes('uptain') || cookie.name?.includes('Uptain')),
+    const uptainCookieGroup = cookieGroups.value?.find((group: CookieGroup) =>
+      group.cookies?.some((cookie: Cookie) => cookie.name?.includes('uptain') || cookie.name?.includes('Uptain')),
     );
 
     return uptainCookieGroup?.accepted ?? false;

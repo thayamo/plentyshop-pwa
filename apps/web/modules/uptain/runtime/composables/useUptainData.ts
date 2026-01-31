@@ -59,23 +59,30 @@ export const useUptainData = () => {
     const currency = cartGetters.getCurrency(cart.value) || 'EUR';
     
     // Calculate total tax amount from all VATs
-    const taxAmount = totals.totalVats?.reduce((sum, vat) => {
-      return sum + (cartGetters.getTotalVatAmount(vat) || 0);
-    }, 0) || 0;
+    const totalVats = totals.totalVats;
+    const taxAmount = Array.isArray(totalVats) 
+      ? totalVats.reduce((sum: number, vat: any) => {
+          return sum + (cartGetters.getTotalVatAmount(vat) || 0);
+        }, 0)
+      : 0;
     
     const shippingCosts = cartGetters.getShippingAmountNet(cart.value) || 0;
     const paymentCosts = 0; // TODO: Get payment costs if available
 
     const products: Record<string, any> = {};
     cart.value.items.forEach((item: CartItem) => {
-      const productId = item.variation?.id?.toString() || '';
+      const variation = cartGetters.getVariation(item);
+      if (!variation) return;
+      
+      const productId = productGetters.getId(variation)?.toString() || '';
       if (productId) {
-        const variationName = item.variation?.name || '';
-        const properties = item.variation?.properties || [];
-        const variants = properties
+        const variationName = productGetters.getName(variation) || '';
+        const variationProperties = variation.variationProperties || [];
+        const variants = variationProperties
+          .flatMap((group) => group.properties || [])
           .map((prop: any) => {
-            const name = prop.name || '';
-            const value = prop.value || '';
+            const name = prop.names?.name || '';
+            const value = prop.values?.value || '';
             return name && value ? `${name}:${value}` : '';
           })
           .filter(Boolean)
