@@ -199,6 +199,136 @@ export default defineNuxtPlugin(() => {
     console.log('[Uptain] Script appended to body:', script.src);
     logScriptData(script);
     
+    // Start interval to check and update missing product attributes on product pages
+    if (process.client && route.path.includes('/product/')) {
+      const expectedProductAttributes = [
+        'product-id',
+        'product-name',
+        'product-price',
+        'product-original-price',
+        'product-image',
+        'product-tags',
+        'product-variants',
+        'product-category',
+        'product-category-paths',
+      ];
+      
+      let attributeCheckInterval: ReturnType<typeof setInterval> | null = null;
+      let checkCount = 0;
+      const maxChecks = 75; // Check for up to 15 seconds (75 * 200ms)
+      
+      const checkAndUpdateAttributes = async () => {
+        checkCount++;
+        if (checkCount > maxChecks) {
+          if (attributeCheckInterval) {
+            clearInterval(attributeCheckInterval);
+            attributeCheckInterval = null;
+            console.log('[Uptain] Stopped attribute check interval after max checks');
+          }
+          return;
+        }
+        
+        const currentScript = document.getElementById('__up_data_qp') as HTMLScriptElement;
+        if (!currentScript) {
+          return;
+        }
+        
+        // Check which attributes are missing
+        const missingAttributes: string[] = [];
+        expectedProductAttributes.forEach(attr => {
+          const dataAttr = `data-${attr}`;
+          if (!currentScript.hasAttribute(dataAttr) || currentScript.getAttribute(dataAttr) === '') {
+            missingAttributes.push(attr);
+          }
+        });
+        
+        if (missingAttributes.length > 0) {
+          console.log('[Uptain] Missing product attributes detected:', missingAttributes);
+          
+          // Try to get product and update attributes
+          const itemId = route.params.itemId as string;
+          let product: any = null;
+          
+          if (itemId) {
+            const { productParams } = createProductParams(route.params);
+            const productId = productParams.id.toString();
+            if (productId) {
+              const { currentProduct } = useProducts();
+              const { productForEditor, data: productData } = useProduct(productId);
+              
+              product = currentProduct.value && Object.keys(currentProduct.value).length > 0
+                ? currentProduct.value
+                : (productForEditor.value && Object.keys(productForEditor.value).length > 0
+                  ? productForEditor.value
+                  : (productData.value && Object.keys(productData.value).length > 0
+                    ? productData.value
+                    : null));
+            }
+          }
+          
+          if (product && Object.keys(product).length > 0) {
+            console.log('[Uptain] Product found, updating missing attributes:', missingAttributes);
+            const productData = await getAllData(product);
+            if (productData) {
+              let attributesUpdated = 0;
+              missingAttributes.forEach(attr => {
+                const value = productData[attr];
+                if (value !== undefined && value !== null && value !== '') {
+                  currentScript.setAttribute(`data-${attr}`, String(value));
+                  attributesUpdated++;
+                  console.log(`[Uptain] Updated missing attribute: ${attr} = ${value}`);
+                }
+              });
+              
+              if (attributesUpdated > 0) {
+                console.log(`[Uptain] Updated ${attributesUpdated} missing product attributes`);
+                logScriptData(currentScript);
+                
+                // If all attributes are now set, stop the interval
+                const stillMissing = expectedProductAttributes.filter(attr => {
+                  const dataAttr = `data-${attr}`;
+                  return !currentScript.hasAttribute(dataAttr) || currentScript.getAttribute(dataAttr) === '';
+                });
+                
+                if (stillMissing.length === 0) {
+                  if (attributeCheckInterval) {
+                    clearInterval(attributeCheckInterval);
+                    attributeCheckInterval = null;
+                    console.log('[Uptain] All product attributes are set, stopped check interval');
+                  }
+                }
+              }
+            }
+          }
+        } else {
+          // All attributes are present, stop checking
+          if (attributeCheckInterval) {
+            clearInterval(attributeCheckInterval);
+            attributeCheckInterval = null;
+            console.log('[Uptain] All product attributes are set, stopped check interval');
+          }
+        }
+      };
+      
+      // Start checking every 200ms
+      attributeCheckInterval = setInterval(checkAndUpdateAttributes, 200);
+      console.log('[Uptain] Started attribute check interval for product page');
+      
+      // Clean up interval on route change
+      const stopInterval = () => {
+        if (attributeCheckInterval) {
+          clearInterval(attributeCheckInterval);
+          attributeCheckInterval = null;
+          console.log('[Uptain] Stopped attribute check interval on route change');
+        }
+      };
+      
+      // Stop interval when route changes
+      watch(() => route.path, () => {
+        stopInterval();
+      });
+    }
+    
     // If on product page and product not found (or empty), wait for it and update script
     const hasValidProduct = product && Object.keys(product).length > 0;
     if (process.client && route.path.includes('/product/') && !hasValidProduct) {
