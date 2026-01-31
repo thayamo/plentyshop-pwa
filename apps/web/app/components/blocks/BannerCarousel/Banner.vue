@@ -20,6 +20,7 @@
         textAlign: getTextAlignment(banner.text?.textAlignment ?? ''),
         alignItems: getContentPosition(banner.text.align ?? ''),
         justifyContent: getContentPosition(banner.text.justify ?? ''),
+        paddingTop: 'var(--header-height, 120px)',
       }"
       :data-testid="'banner-overlay-' + meta.uuid"
     >
