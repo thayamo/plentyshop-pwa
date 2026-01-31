@@ -5,8 +5,7 @@
   >
     <!-- Uptain Logo -->
     <div
-      class="w-full rounded-lg p-4"
-      style="background-color: rgb(17 17 17); box-shadow: inset 0px 0px 0px 1px #ffffff12, 0px 5px 5px -5px #000000;"
+      class="w-full"
     >
       <div class="flex justify-between items-center">
         <svg class="logo--dark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140.71 50" style="width: 80px;">
@@ -20,7 +19,12 @@
     </div>
 
     <!-- Uptain ID -->
-    <div style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
+    <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
+      <div
+        style="position: absolute; top: 0; left: 0.5em; z-index: 1; transform: translateY(-50%); padding: 0 0.5em; background: #111; font-size: 0.875em; color: #696969;"
+      >
+        {{ getEditorTranslation('accountLabel') }}
+      </div>
       <div class="flex justify-between mb-2">
         <UiFormLabel>{{ getEditorTranslation('uptainId.label') }}</UiFormLabel>
         <SfTooltip :label="getEditorTranslation('uptainId.tooltip')" :placement="'top'" :show-arrow="true" class="ml-2 z-10">
@@ -38,7 +42,12 @@
     </div>
 
     <!-- Toggles -->
-    <div style="border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;" class="space-y-4">
+    <div style="position: relative;border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;" class="space-y-4">
+      <div
+        style="position: absolute; top: 0; left: 0.5em; z-index: 1; transform: translateY(-50%); padding: 0 0.5em; background: #111; font-size: 0.875em; color: #696969;"
+      >
+        {{ getEditorTranslation('basicSettingsLabel') }}
+      </div>
       <!-- Block cookies initially -->
       <div class="flex justify-between">
         <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
@@ -88,7 +97,7 @@
         href="https://uptain.de/registrieren/"
         target="_blank"
         rel="noopener noreferrer"
-        style="display: inline-block; padding: 0.5em 1em; background-color: rgb(48, 187, 181); color: white; border-radius: 0.375rem; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s;"
+        style="display: inline-block; width: 100%; padding: 0.5em 1em; background-color: rgb(48, 187, 181); color: white; border-radius: 0.375rem; text-decoration: none; font-size: 0.875rem; font-weight: 500; transition: background-color 0.2s; text-align: center;"
         onmouseover="this.style.backgroundColor='rgb(38, 150, 145)'"
         onmouseout="this.style.backgroundColor='rgb(48, 187, 181)'"
       >
@@ -135,6 +144,8 @@ const transmitRevenue = computed({
 <i18n lang="json">
 {
   "en": {
+    "accountLabel": "Uptain Account",
+    "basicSettingsLabel": "Basic Settings",
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Enter your Uptain tracking ID",
@@ -154,6 +165,8 @@ const transmitRevenue = computed({
     }
   },
   "de": {
+    "accountLabel": "Uptain Konto",
+    "basicSettingsLabel": "Grundeinstellungen",
     "uptainId": {
       "label": "Uptain Tracking ID",
       "placeholder": "Geben Sie Ihre Uptain Tracking-ID ein",
