@@ -27,6 +27,8 @@ export default defineNuxtPlugin(() => {
   if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
 
   const loadUptainScript = async () => {
+    console.log('[Uptain] loadUptainScript called');
+    
     // Get product if on product page
     let product = null;
     if (process.client && route.path.includes('/product/')) {
@@ -38,7 +40,11 @@ export default defineNuxtPlugin(() => {
     }
     
     const data = await getAllData(product);
-    if (!data) return;
+    console.log('[Uptain] getAllData returned:', data ? 'data exists' : 'null');
+    if (!data) {
+      console.warn('[Uptain] No data returned from getAllData, script not loaded');
+      return;
+    }
 
     // Remove existing script if any
     const existingScript = document.getElementById('__up_data_qp');
@@ -62,6 +68,7 @@ export default defineNuxtPlugin(() => {
 
     // Append to body
     document.body.appendChild(script);
+    console.log('[Uptain] Script appended to body:', script.src);
 
     // Initialize event bus if not exists
     if (typeof window !== 'undefined' && !window._upEventBus) {
@@ -106,10 +113,16 @@ export default defineNuxtPlugin(() => {
       // Watch for Uptain enabled/disabled changes
       watch(
         () => getUptainEnabled(),
-        (enabled) => {
+        async (enabled) => {
           if (isSettingEnabled(enabled)) {
-            if (!shouldBlockCookies() || checkCookieConsent()) {
-              loadUptainScript();
+            const shouldBlock = shouldBlockCookies();
+            const hasConsent = checkCookieConsent();
+            
+            // Debug logging
+            console.log('[Uptain] Enabled:', enabled, 'Should block:', shouldBlock, 'Has consent:', hasConsent);
+            
+            if (!shouldBlock || hasConsent) {
+              await loadUptainScript();
             }
           } else {
             // Remove script if disabled
@@ -122,7 +135,14 @@ export default defineNuxtPlugin(() => {
         { immediate: true },
       );
 
-      if (!shouldBlockCookies() || checkCookieConsent()) {
+      // Initial load check
+      const shouldBlock = shouldBlockCookies();
+      const hasConsent = checkCookieConsent();
+      
+      // Debug logging
+      console.log('[Uptain] Initial load - Should block:', shouldBlock, 'Has consent:', hasConsent);
+      
+      if (!shouldBlock || hasConsent) {
         loadUptainScript();
       }
 
