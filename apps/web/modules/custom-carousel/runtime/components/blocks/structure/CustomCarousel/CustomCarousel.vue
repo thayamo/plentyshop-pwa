@@ -12,6 +12,7 @@
       :pagination="paginationConfig"
       :navigation="navigationConfig"
       class="!z-0 !w-full !max-h-[100vh] !h-[100vh]"
+      :style="{ marginTop: 'calc(-1 * var(--header-height, 120px))' }"
       @swiper="onSwiperInit"
       @slide-change="onSlideChange"
     >

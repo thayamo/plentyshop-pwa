@@ -2,7 +2,7 @@ import { defineNuxtPlugin, useHead } from 'nuxt/app';
 
 const headerCss = `
 :root {
-  --header-height: 154px;
+  --header-height: 155px;
 }
 
 .fixed-header {
