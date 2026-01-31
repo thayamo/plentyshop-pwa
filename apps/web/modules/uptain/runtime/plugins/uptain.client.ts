@@ -118,7 +118,8 @@ export default defineNuxtPlugin(() => {
   };
 
   const consentCookie = useCookie<string>('consent-cookie');
-  let lastConsentSnapshot: string | null = null;
+  let lastConsentSnapshot: string | null = consentCookie.value ?? null;
+  let isUpdatingConsentCookie = false;
 
   const getStoredUptainConsent = (groupName: string, rawConsent: string | null): boolean | null => {
     if (!rawConsent) return null;
@@ -128,6 +129,36 @@ export default defineNuxtPlugin(() => {
       return typeof stored === 'boolean' ? stored : null;
     } catch {
       return null;
+    }
+  };
+
+  const persistUptainConsent = (groupName: string, accepted: boolean) => {
+    const rawConsent = consentCookie.value;
+    if (!rawConsent) return;
+    try {
+      const parsed = JSON.parse(rawConsent);
+      const groups = parsed?.groups ?? {};
+      const group = groups[groupName] ?? {};
+
+      if (group['CookieBar.uptain.cookies.uptain.name'] === accepted) {
+        return;
+      }
+
+      group['CookieBar.uptain.cookies.uptain.name'] = accepted;
+      groups[groupName] = group;
+      parsed.groups = groups;
+
+      const nextValue = JSON.stringify(parsed);
+      if (nextValue !== rawConsent) {
+        isUpdatingConsentCookie = true;
+        consentCookie.value = nextValue;
+        lastConsentSnapshot = nextValue;
+        nextTick(() => {
+          isUpdatingConsentCookie = false;
+        });
+      }
+    } catch {
+      // ignore malformed consent cookie
     }
   };
 
@@ -156,19 +187,23 @@ export default defineNuxtPlugin(() => {
     if (uptainCookie.Status !== desiredStatus) {
       uptainCookie.Status = desiredStatus;
     }
-    // Only update accepted when consent cookie changed (avoid overriding user selection before save)
-    if (hasConsentChanged && uptainCookie.accepted !== desiredAccepted) {
+    if (storedConsent !== null && uptainCookie.accepted !== desiredAccepted) {
       uptainCookie.accepted = desiredAccepted;
     }
 
     const uptainGroup = groups.find((group) =>
       (group.cookies || []).some((cookie) => cookie.name === uptainCookie.name),
     );
-    if (uptainGroup && hasConsentChanged) {
+    if (uptainGroup && storedConsent !== null && hasConsentChanged) {
       uptainGroup.accepted = (uptainGroup.cookies || []).some((cookie) => cookie.accepted);
     }
 
-    if (hasConsentChanged) {
+    // If consent cookie changed but Uptain is missing, persist the current selection
+    if (hasConsentChanged && storedConsent === null) {
+      persistUptainConsent(groupName, !!uptainCookie.accepted);
+    }
+
+    if (hasConsentChanged && !isUpdatingConsentCookie) {
       lastConsentSnapshot = rawConsent;
     }
   };
@@ -219,6 +254,7 @@ export default defineNuxtPlugin(() => {
     watch(
       () => consentCookie.value,
       () => {
+        if (isUpdatingConsentCookie) return;
         syncCookieOptOutState();
       },
     );
