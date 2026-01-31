@@ -20,7 +20,7 @@ export default defineNuxtPlugin(() => {
   const uptainId = getUptainId();
   if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
 
-  const loadUptainScript = () => {
+  const loadUptainScript = async () => {
     // Get product if on product page
     let product = null;
     if (process.client && route.path.includes('/product/')) {
@@ -31,7 +31,7 @@ export default defineNuxtPlugin(() => {
       }
     }
     
-    const data = getAllData(product);
+    const data = await getAllData(product);
     if (!data) return;
 
     // Remove existing script if any
@@ -152,7 +152,7 @@ export default defineNuxtPlugin(() => {
             // Update script with new data
             const currentScript = document.getElementById('__up_data_qp');
             if (currentScript) {
-              const data = getAllData(product);
+              const data = await getAllData(product);
               if (data) {
                 Object.entries(data).forEach(([key, value]) => {
                   if (value && value !== '') {

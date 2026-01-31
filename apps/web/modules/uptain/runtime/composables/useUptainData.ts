@@ -1,5 +1,5 @@
-import type { Cart, CartItem, Product, User } from '@plentymarkets/shop-api';
-import { cartGetters, productGetters } from '@plentymarkets/shop-api';
+import type { Cart, CartItem, Product, User, Order } from '@plentymarkets/shop-api';
+import { cartGetters, productGetters, orderGetters } from '@plentymarkets/shop-api';
 
 export const useUptainData = () => {
   const route = useRoute();
@@ -12,6 +12,9 @@ export const useUptainData = () => {
   const { getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
   const { getSetting: getCustomerData } = useSiteSettings('uptainTransmitCustomerData');
   const { getSetting: getRevenue } = useSiteSettings('uptainTransmitRevenue');
+
+  // Cache for calculated revenue
+  const revenueCache = useState<string | null>('uptain-revenue-cache', () => null);
 
   const getPluginVersion = () => {
     return 'plentyshop-pwa_1.0.0';
@@ -203,12 +206,68 @@ export const useUptainData = () => {
     return (transmitNewsletter && isNewsletterSubscriber) || (transmitCustomer && hasOrders);
   };
 
-  const getPersonalData = () => {
+  const calculateRevenue = async (): Promise<string> => {
+    if (!isAuthorized.value || !user.value) return '0.00';
+
+    // Return cached value if available
+    if (revenueCache.value !== null) {
+      return revenueCache.value;
+    }
+
+    try {
+      const { fetchCustomerOrders } = useCustomerOrders();
+      let totalRevenue = 0;
+      let page = 1;
+      let hasMorePages = true;
+
+      // Fetch all orders across all pages
+      while (hasMorePages) {
+        const ordersData = await fetchCustomerOrders({ page });
+        
+        if (!ordersData?.data?.entries || ordersData.data.entries.length === 0) {
+          hasMorePages = false;
+          break;
+        }
+
+        // Calculate revenue from current page of orders
+        ordersData.data.entries.forEach((order: Order) => {
+          // Only include successful orders (exclude returns/cancelled)
+          const totals = orderGetters.getTotals(order);
+          if (totals) {
+            // Get net total (itemSumNet excludes taxes, shipping, payment costs)
+            const netTotal = totals.itemSumNet || 0;
+            
+            // Only add if order is not a return/cancellation (positive values)
+            if (netTotal > 0) {
+              totalRevenue += netTotal;
+            }
+          }
+        });
+
+        // Check if there are more pages
+        const totalPages = ordersData.data?.totals?.pages || 1;
+        if (page >= totalPages) {
+          hasMorePages = false;
+        } else {
+          page++;
+        }
+      }
+
+      const revenue = formatPrice(totalRevenue);
+      revenueCache.value = revenue;
+      return revenue;
+    } catch (error) {
+      console.error('Error calculating revenue:', error);
+      return '0.00';
+    }
+  };
+
+  const getPersonalData = async () => {
     if (!shouldTransmitPersonalData() || !user.value) return null;
 
     const transmitRevenue = getRevenue() === 'true';
-    // TODO: Calculate total revenue from orders
-    const revenue = '0.00';
+    // Calculate revenue asynchronously if needed
+    const revenue = transmitRevenue ? await calculateRevenue() : '0.00';
 
     return {
       email: user.value.email || '',
@@ -222,7 +281,7 @@ export const useUptainData = () => {
     };
   };
 
-  const getAllData = (product?: Product | null) => {
+  const getAllData = async (product?: Product | null) => {
     const uptainId = getSetting() || runtimeConfig.public.uptainId || '';
     if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return null;
 
@@ -266,8 +325,8 @@ export const useUptainData = () => {
       Object.assign(data, successData);
     }
 
-    // Add personal data if settings allow
-    const personalData = getPersonalData();
+    // Add personal data if settings allow (now async for revenue calculation)
+    const personalData = await getPersonalData();
     if (personalData) {
       Object.assign(data, personalData);
     }
@@ -283,6 +342,7 @@ export const useUptainData = () => {
     getAllData,
     shouldBlockCookies,
     getUptainId: () => getSetting() || runtimeConfig.public.uptainId || '',
+    calculateRevenue,
   };
 };
 
