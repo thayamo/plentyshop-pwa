@@ -7,8 +7,8 @@ export default defineNuxtModule({
   setup(_, nuxt) {
     const resolver = createResolver(import.meta.url);
 
-    // Add plugin for cookie registration (runs early to add cookies before cookie bar is shown)
-    addPlugin(resolver.resolve('./runtime/plugins/00.uptain-cookie-registration'));
+    // Add server-side plugin for cookie registration (before cookie bar is shown)
+    addPlugin(resolver.resolve('./runtime/plugins/uptain-cookie-registration.server'));
     // Add client-side plugin for script loading
     addPlugin(resolver.resolve('./runtime/plugins/uptain.client'));
     addComponentsDir({

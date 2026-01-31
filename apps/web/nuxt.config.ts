@@ -236,6 +236,9 @@ export default defineNuxtConfig({
       uptainTransmitNewsletterData: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_NEWSLETTER_DATA || 'false',
       uptainTransmitCustomerData: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_CUSTOMER_DATA || 'false',
       uptainTransmitRevenue: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_REVENUE || 'false',
+      uptainEnabled: process.env.NUXT_PUBLIC_UPTAIN_ENABLED || '0',
+      uptainCookieGroup: process.env.NUXT_PUBLIC_UPTAIN_COOKIE_GROUP || 'CookieBar.externalMedia.label',
+      uptainRegisterCookieAsOptOut: process.env.NUXT_PUBLIC_UPTAIN_REGISTER_COOKIE_AS_OPT_OUT || '0',
     },
   },
   modules: [

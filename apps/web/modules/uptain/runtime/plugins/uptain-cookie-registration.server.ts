@@ -1,55 +1,45 @@
-import type { Cookie } from '@plentymarkets/shop-core';
-
 /**
  * Server-side plugin to register Uptain cookies in the cookie consent manager
  * This plugin runs before the cookie bar is initialized and adds Uptain cookies
  * to the configured cookie group dynamically.
  */
 export default defineNuxtPlugin(() => {
-  const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
   const { getSetting: getUptainCookieGroup } = useSiteSettings('uptainCookieGroup');
   const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 
-  // Helper function to check if a setting value is enabled (supports both 'true'/'1' and 'false'/'0')
-  const isSettingEnabled = (value: string | undefined): boolean => {
-    if (!value) return false;
-    return value === 'true' || value === '1';
+  const runtimeConfig = useRuntimeConfig();
+
+  // Helper function to check if a setting value is enabled
+  // Handles string/number/boolean values from runtime config or site settings.
+  const isSettingEnabled = (value: string | number | boolean | undefined | null): boolean => {
+    if (value === true || value === 1) return true;
+    if (value === false || value === 0 || value == null) return false;
+    if (typeof value === 'string') return value === 'true' || value === '1';
+    return false;
   };
 
-  // Check if Uptain is enabled
-  const isUptainEnabled = isSettingEnabled(getUptainEnabled());
-  if (!isUptainEnabled) return;
+  const configuredCookieGroup =
+    getUptainCookieGroup() ||
+    (runtimeConfig.public.uptainCookieGroup as string | undefined) ||
+    'CookieBar.externalMedia.label';
 
-  const configuredCookieGroup = getUptainCookieGroup();
   if (!configuredCookieGroup) return;
 
-  const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
+  const registerAsOptOut = isSettingEnabled(
+    getRegisterCookieAsOptOut() ?? runtimeConfig.public.uptainRegisterCookieAsOptOut,
+  );
 
-  // Get cookie groups and add Uptain cookie to the configured group
-  const { cookieGroups } = useCookieBar();
-
-  if (cookieGroups.value) {
-    const targetGroup = cookieGroups.value.find((group) => group.name === configuredCookieGroup);
-    
-    if (targetGroup) {
-      const uptainCookie: Cookie = {
-        name: 'CookieBar.uptain.cookies.uptain.name',
-        Provider: 'CookieBar.uptain.cookies.uptain.provider',
-        Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
-        PrivacyPolicy: '/PrivacyPolicy',
-        Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
-        accepted: !registerAsOptOut, // If opt-out, start as not accepted
-      };
-
-      // Check if cookie already exists to avoid duplicates
-      const cookieExists = targetGroup.cookies?.some((cookie) => cookie.name === uptainCookie.name);
-      if (!cookieExists) {
-        if (!targetGroup.cookies) {
-          targetGroup.cookies = [];
-        }
-        targetGroup.cookies.push(uptainCookie);
-      }
-    }
-  }
+  const { add } = useRegisterCookie();
+  add(
+    {
+      name: 'CookieBar.uptain.cookies.uptain.name',
+      Provider: 'CookieBar.uptain.cookies.uptain.provider',
+      Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
+      PrivacyPolicy: '/PrivacyPolicy',
+      Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
+      accepted: !registerAsOptOut, // If opt-out, start as not accepted
+    },
+    configuredCookieGroup,
+  );
 });
 
