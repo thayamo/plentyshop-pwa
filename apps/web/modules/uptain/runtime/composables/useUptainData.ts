@@ -714,7 +714,10 @@ export const useUptainData = () => {
   };
 
   const shouldTransmitPersonalData = async (): Promise<boolean> => {
-    if (!isAuthorized || !user.value) return false;
+    if (!isAuthorized || !user.value) {
+      console.log('[Uptain] shouldTransmitPersonalData: false - not authorized or no user', { isAuthorized: isAuthorized.value, hasUser: !!user.value });
+      return false;
+    }
 
     const transmitNewsletter = isSettingEnabled(getNewsletterData());
     const transmitCustomer = isSettingEnabled(getCustomerData());
@@ -725,7 +728,17 @@ export const useUptainData = () => {
     // Check if user has at least one successful order
     const hasOrders = await checkHasSuccessfulOrders();
 
-    return (transmitNewsletter && isNewsletterSubscriber) || (transmitCustomer && hasOrders);
+    const shouldTransmit = (transmitNewsletter && isNewsletterSubscriber) || (transmitCustomer && hasOrders);
+    console.log('[Uptain] shouldTransmitPersonalData:', 
+      'shouldTransmit:', shouldTransmit,
+      'transmitNewsletter:', transmitNewsletter,
+      'transmitCustomer:', transmitCustomer,
+      'isNewsletterSubscriber:', isNewsletterSubscriber,
+      'hasOrders:', hasOrders,
+      'newsletterSetting:', getNewsletterData(),
+      'customerSetting:', getCustomerData()
+    );
+    return shouldTransmit;
   };
 
   const calculateRevenue = async (): Promise<string> => {
@@ -806,22 +819,44 @@ export const useUptainData = () => {
   };
 
   const getPersonalData = async () => {
-    if (!(await shouldTransmitPersonalData()) || !user.value) return null;
+    const shouldTransmit = await shouldTransmitPersonalData();
+    console.log('[Uptain] getPersonalData called:', 'shouldTransmit:', shouldTransmit, 'hasUser:', !!user.value);
+    
+    if (!shouldTransmit || !user.value) {
+      console.log('[Uptain] getPersonalData: returning null', 'shouldTransmit:', shouldTransmit, 'hasUser:', !!user.value);
+      return null;
+    }
 
     const transmitRevenue = isSettingEnabled(getRevenue());
     // Calculate revenue asynchronously if needed
-    const revenue = transmitRevenue ? await calculateRevenue() : '0.00';
+    const revenue = transmitRevenue ? await calculateRevenue() : '';
 
-    return {
+    const userAny = user.value as any;
+    
+    // Extract gender: 'f' for female, 'm' for male, '' for diverse or unknown
+    let gender = '';
+    if (userAny.gender === 'female' || userAny.gender === 'f' || userAny.gender === 'F') {
+      gender = 'f';
+    } else if (userAny.gender === 'male' || userAny.gender === 'm' || userAny.gender === 'M') {
+      gender = 'm';
+    }
+    
+    // Extract title (e.g. "Dr.", "Mrs.", "Mr.", etc.)
+    const title = userAny.title || userAny.titleCode || '';
+
+    const personalData = {
       email: user.value.email || '',
       firstname: user.value.firstName || '',
       lastname: user.value.lastName || '',
-      gender: (user.value as any).gender === 'female' ? 'f' : (user.value as any).gender === 'male' ? 'm' : '',
-      title: (user.value as any).title || '',
+      gender: gender,
+      title: title,
       uid: user.value.id?.toString() || '',
-      revenue: transmitRevenue ? revenue : '',
+      revenue: revenue,
       customergroup: getCustomerGroupName(),
     };
+    
+    console.log('[Uptain] getPersonalData: returning data', personalData);
+    return personalData;
   };
 
   const getAllData = async (product?: Product | null) => {

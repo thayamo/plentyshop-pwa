@@ -174,11 +174,17 @@ export default defineNuxtPlugin(() => {
 
     // Add all data attributes
     let productAttributesInScript = 0;
+    // Personal data fields that should always be set (even if empty)
+    const personalDataFields = ['email', 'firstname', 'lastname', 'gender', 'title', 'uid', 'revenue', 'customergroup'];
+    
     Object.entries(data).forEach(([key, value]) => {
       // Always set product-variants, even if empty (it's a required field)
       if (key === 'product-variants') {
         script.setAttribute(`data-${key}`, String(value || ''));
         productAttributesInScript++;
+      } else if (personalDataFields.includes(key)) {
+        // Always set personal data fields, even if empty (as per Uptain spec)
+        script.setAttribute(`data-${key}`, String(value || ''));
       } else if (value && value !== '') {
         script.setAttribute(`data-${key}`, String(value));
         if (key.startsWith('product-')) {
