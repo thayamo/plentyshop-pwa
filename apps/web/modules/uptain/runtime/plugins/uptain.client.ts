@@ -46,11 +46,19 @@ export default defineNuxtPlugin(() => {
       return;
     }
 
-    attributes.forEach((attr) => {
+    const rows = attributes.map((attr) => {
       const value = script.getAttribute(attr) ?? '';
       const key = attr.replace(/^data-/, '');
-      console.log(`${key}: "${value}"`);
+      return { key, value };
     });
+
+    console.groupCollapsed(
+      '%cUptain Debug%c data-* attributes',
+      'background:#111;color:#31b9b5;padding:2px 6px;border-radius:4px;',
+      'color:#9ca3af;',
+    );
+    console.table(rows);
+    console.groupEnd();
   };
 
   const loadUptainScript = async () => {
