@@ -405,9 +405,14 @@ export const useUptainData = () => {
   };
 
   const getSuccessData = () => {
+    // Check if we're on a confirmation/success page
+    // Route structure: /confirmation/[orderId]/[accessKey]
+    // The orderId parameter is the correct order number
     const orderId = route.params.orderId as string;
     if (!orderId) return null;
 
+    // The route parameter orderId is the correct order number
+    // This matches the route structure: /confirmation/[orderId]/[accessKey]
     return {
       success: '1',
       ordernumber: orderId,
