@@ -1,4 +1,4 @@
-import { addPlugin, createResolver, defineNuxtModule } from '@nuxt/kit';
+import { addPlugin, addComponentsDir, createResolver, defineNuxtModule } from '@nuxt/kit';
 
 export default defineNuxtModule({
   meta: {
@@ -7,7 +7,11 @@ export default defineNuxtModule({
   setup(_, nuxt) {
     const resolver = createResolver(import.meta.url);
 
-    addPlugin(resolver.resolve('./runtime/plugins/uptain'));
+    addPlugin(resolver.resolve('./runtime/plugins/uptain.client'));
+    addComponentsDir({
+      path: resolver.resolve('./runtime/components'),
+      pathPrefix: false,
+    });
   },
 });
 

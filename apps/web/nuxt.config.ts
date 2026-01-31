@@ -232,6 +232,10 @@ export default defineNuxtConfig({
       manufacturerEmail: process.env.NUXT_PUBLIC_MANUFACTURER_EMAIL || '0',
       manufacturerContactUrl: process.env.NUXT_PUBLIC_MANUFACTURER_CONTACT_URL || '0',
       uptainId: process.env.NUXT_PUBLIC_UPTAIN_ID || 'XXXXXXXXXXXXXXXX',
+      uptainBlockCookiesInitially: process.env.NUXT_PUBLIC_UPTAIN_BLOCK_COOKIES_INITIALLY || 'false',
+      uptainTransmitNewsletterData: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_NEWSLETTER_DATA || 'false',
+      uptainTransmitCustomerData: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_CUSTOMER_DATA || 'false',
+      uptainTransmitRevenue: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_REVENUE || 'false',
     },
   },
   modules: [
