@@ -1,10 +1,9 @@
-import type { Cookie } from '@plentymarkets/shop-core';
-import { onMounted, nextTick } from 'vue';
+import { nextTick } from 'vue';
 
 /**
  * Plugin to register Uptain cookies in the cookie consent manager
- * This plugin runs early and adds Uptain cookies to the configured cookie group
- * as soon as the cookie groups are available.
+ * Uses useRegisterCookie composable from @plentymarkets/shop-core to dynamically add cookies
+ * See: https://pwa-docs.plentyone.com/guide/modules/shop-core/cookie-consent
  */
 export default defineNuxtPlugin(() => {
   if (process.server) return;
@@ -19,56 +18,54 @@ export default defineNuxtPlugin(() => {
     return value === 'true' || value === '1';
   };
 
-  const registerUptainCookie = () => {
-    // Check if Uptain is enabled
-    const isUptainEnabled = isSettingEnabled(getUptainEnabled());
-    if (!isUptainEnabled) return;
+  // Check if Uptain is enabled
+  const isUptainEnabled = isSettingEnabled(getUptainEnabled());
+  if (!isUptainEnabled) return;
 
-    const configuredCookieGroup = getUptainCookieGroup();
-    if (!configuredCookieGroup) return;
+  const configuredCookieGroup = getUptainCookieGroup();
+  if (!configuredCookieGroup) return;
 
-    const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
+  const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
 
-    // Get cookie groups
-    const { cookieGroups } = useCookieBar();
+  // Use useRegisterCookie composable to register the cookie
+  // This is the recommended way according to the documentation
+  // See: https://pwa-docs.plentyone.com/guide/modules/shop-core/cookie-consent
+  const { add } = useRegisterCookie();
 
+  // Register the cookie
+  add({
+    name: 'CookieBar.uptain.cookies.uptain.name',
+    Provider: 'CookieBar.uptain.cookies.uptain.provider',
+    Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
+    PrivacyPolicy: '/PrivacyPolicy',
+    Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
+    accepted: !registerAsOptOut, // If opt-out, start as not accepted
+    // Note: Script loading is handled by uptain.client.ts plugin to support dynamic data attributes
+  });
+
+  // After registering, manually add the cookie to the configured cookie group
+  // This ensures it appears in the correct group in the cookie consent manager
+  const { cookieGroups } = useCookieBar();
+  
+  // Use nextTick to ensure cookie groups are initialized
+  nextTick(() => {
     if (cookieGroups.value) {
       const targetGroup = cookieGroups.value.find((group) => group.name === configuredCookieGroup);
+      const registeredCookie = cookieGroups.value
+        .flatMap((group) => group.cookies || [])
+        .find((cookie) => cookie.name === 'CookieBar.uptain.cookies.uptain.name');
       
-      if (targetGroup) {
-        const uptainCookie: Cookie = {
-          name: 'CookieBar.uptain.cookies.uptain.name',
-          Provider: 'CookieBar.uptain.cookies.uptain.provider',
-          Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
-          PrivacyPolicy: '/PrivacyPolicy',
-          Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
-          accepted: !registerAsOptOut, // If opt-out, start as not accepted
-          // Note: Script loading is handled by uptain.client.ts plugin to support dynamic data attributes
-        };
-
-        // Check if cookie already exists to avoid duplicates
-        const cookieExists = targetGroup.cookies?.some((cookie) => cookie.name === uptainCookie.name);
+      if (targetGroup && registeredCookie) {
+        // Check if cookie already exists in the target group
+        const cookieExists = targetGroup.cookies?.some((cookie) => cookie.name === registeredCookie.name);
         if (!cookieExists) {
           if (!targetGroup.cookies) {
             targetGroup.cookies = [];
           }
-          targetGroup.cookies.push(uptainCookie);
+          targetGroup.cookies.push(registeredCookie);
         }
       }
     }
-  };
-
-  // Try to register immediately and also on mount
-  onMounted(() => {
-    // Wait a bit for cookie groups to be initialized
-    nextTick(() => {
-      registerUptainCookie();
-    });
-  });
-
-  // Also try immediately (in case cookie groups are already available)
-  nextTick(() => {
-    registerUptainCookie();
   });
 });
 
