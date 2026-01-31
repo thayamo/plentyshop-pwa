@@ -68,70 +68,104 @@ export const useUptainData = () => {
   };
 
   const getWishlistData = async (): Promise<string> => {
-    // Get current wishlist data (either from state or fetch if needed)
+    // First, check if we have data in state
     let currentWishlistData = wishlistData.value;
-
-    // Check if we need to fetch wishlist data
+    
+    // If no data in state, try to fetch it
     if (!currentWishlistData || currentWishlistData.length === 0) {
-      // Try to fetch wishlist if we have IDs or the user is logged in
-      if (!wishlistLoading.value && (wishlistItemIds.value?.length || isAuthorized.value)) {
-        try {
-          // fetchWishlist() returns the data directly and also updates the state
-          const fetchedData = await fetchWishlist();
-          // Use the fetched data directly, or fall back to state if fetch returned null/undefined
-          currentWishlistData = fetchedData || wishlistData.value;
-        } catch (error) {
-          console.warn('[Uptain] Failed to fetch wishlist:', error);
-          return '{}';
+      // Only fetch if user is authorized or has wishlist item IDs
+      if (isAuthorized.value || wishlistItemIds.value?.length > 0) {
+        if (!wishlistLoading.value) {
+          try {
+            console.log('[Uptain] Fetching wishlist, isAuthorized:', isAuthorized.value, 'wishlistItemIds:', wishlistItemIds.value);
+            const fetchedData = await fetchWishlist();
+            console.log('[Uptain] Fetched wishlist data:', fetchedData);
+            currentWishlistData = fetchedData || wishlistData.value;
+            console.log('[Uptain] Using wishlist data:', currentWishlistData);
+          } catch (error) {
+            console.warn('[Uptain] Failed to fetch wishlist:', error);
+          }
         }
-      } else {
-        // No IDs and user not authorized, return empty
-        return '{}';
       }
     }
 
-    // Final check after potential fetch
-    if (!currentWishlistData || currentWishlistData.length === 0) {
-      return '{}';
+    // Process wishlist data
+    if (currentWishlistData && Array.isArray(currentWishlistData) && currentWishlistData.length > 0) {
+      const wishlistProducts: Record<string, any> = {};
+
+      currentWishlistData.forEach((wishlistItem: any) => {
+        console.log('[Uptain] Processing wishlistItem:', wishlistItem);
+        
+        // WishlistItem has structure: { item: {...}, texts: {...}, variation: {...}, images: {...} }
+        // The item property contains the product data, variation contains variation-specific data
+        const item = wishlistItem.item;
+        const variation = wishlistItem.variation;
+        const texts = wishlistItem.texts;
+        
+        if (!item && !variation) {
+          console.warn('[Uptain] WishlistItem missing both item and variation:', wishlistItem);
+          return;
+        }
+
+        // Use item if available (it's the full product), otherwise use variation
+        const product = item || variation;
+        
+        // Get product ID - try from item first, then variation
+        const productId = (item?.id?.toString()) || 
+                         (variation?.itemId?.toString()) || 
+                         productGetters.getId(product)?.toString() || 
+                         '';
+        console.log('[Uptain] Product ID:', productId, 'from item:', item?.id, 'from variation:', variation?.itemId);
+        
+        if (!productId) {
+          console.warn('[Uptain] Could not get product ID. Item:', item, 'Variation:', variation);
+          return;
+        }
+
+        // Get product name - try multiple sources
+        // texts.name1 is the product name in WishlistItem
+        // item.texts.name1 would be in the item if it has texts
+        // productGetters.getName() should work on the product object
+        let productName = texts?.name1 || 
+                         item?.texts?.name1 || 
+                         productGetters.getName(product) || 
+                         productGetters.getName(item) || 
+                         productGetters.getName(variation) || 
+                         '';
+        console.log('[Uptain] Product name:', productName, 
+                   'from texts.name1:', texts?.name1, 
+                   'from item.texts.name1:', item?.texts?.name1,
+                   'from productGetters:', productGetters.getName(product));
+        
+        // Get variants from variationProperties - the variation should have these
+        const variationProperties = variation?.variationProperties || item?.variationProperties || [];
+        const variants = variationProperties
+          .flatMap((group: any) => group.properties || [])
+          .map((prop: any) => {
+            const name = prop.names?.name || prop.name || '';
+            const value = prop.values?.value || prop.value || '';
+            return name && value ? `${name}:${value}` : '';
+          })
+          .filter(Boolean)
+          .join(';');
+        
+        console.log('[Uptain] Variants:', variants, 'from properties:', variationProperties.length);
+
+        wishlistProducts[productId] = {
+          name: productName,
+          variants: variants || '',
+        };
+        
+        console.log('[Uptain] Added product to wishlist:', productId, wishlistProducts[productId]);
+      });
+
+      const result = JSON.stringify(wishlistProducts);
+      console.log('[Uptain] Wishlist result:', result, 'Products count:', Object.keys(wishlistProducts).length);
+      return result;
     }
 
-    const wishlistProducts: Record<string, any> = {};
-
-    currentWishlistData.forEach((wishlistItem: any) => {
-      // WishlistItem has a variation property that contains product data
-      const variation = wishlistItem.variation;
-      if (!variation) {
-        console.warn('[Uptain] WishlistItem missing variation:', wishlistItem);
-        return;
-      }
-
-      const productId = productGetters.getId(variation)?.toString() || '';
-      if (!productId) {
-        console.warn('[Uptain] Could not get product ID from variation:', variation);
-        return;
-      }
-
-      const productName = productGetters.getName(variation) || '';
-      
-      // Get variants from variationProperties
-      const variationProperties = variation.variationProperties || [];
-      const variants = variationProperties
-        .flatMap((group: any) => group.properties || [])
-        .map((prop: any) => {
-          const name = prop.names?.name || '';
-          const value = prop.values?.value || '';
-          return name && value ? `${name}:${value}` : '';
-        })
-        .filter(Boolean)
-        .join(';');
-
-      wishlistProducts[productId] = {
-        name: productName,
-        variants: variants || '',
-      };
-    });
-
-    return JSON.stringify(wishlistProducts);
+    console.log('[Uptain] No wishlist data available, returning empty');
+    return '{}';
   };
 
   const getComparisonData = (): string => {

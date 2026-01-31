@@ -455,10 +455,11 @@ export default defineNuxtPlugin(() => {
       },
     );
 
-    // Listen to productLoaded event to update product data
+    // Listen to events to update data
     if (process.client) {
       const { on: onPlentyEvent } = usePlentyEvent();
       
+      // Listen to productLoaded event to update product data
       onPlentyEvent('frontend:productLoaded', async (eventData: { product: any }) => {
         const product = eventData?.product;
         if (!product || Object.keys(product).length === 0) {
@@ -495,6 +496,86 @@ export default defineNuxtPlugin(() => {
           await loadUptainScript();
         }
       });
+
+      // Listen to wishlist changes to update wishlist data
+      onPlentyEvent('frontend:addToWishlist', async () => {
+        const enabled = isSettingEnabled(getUptainEnabled());
+        const uptainId = getValidUptainId();
+        if (!enabled || !uptainId) return;
+        if (!shouldBlockCookies() || !checkCookieConsent()) return;
+        
+        console.log('[Uptain] frontend:addToWishlist event received, updating wishlist data');
+        const currentScript = document.getElementById('__up_data_qp');
+        if (currentScript) {
+          // Get product from state (we don't have product in this event, so get it from getAllData)
+          const product = getProductFromState();
+          const data = await getAllData(product);
+          if (data && data.wishlist) {
+            currentScript.setAttribute('data-wishlist', data.wishlist);
+            console.log('[Uptain] Updated wishlist data:', data.wishlist);
+            
+            logScriptData(currentScript);
+            // Trigger data read
+            if (window._upEventBus) {
+              window._upEventBus.publish('uptain.readData');
+            }
+          }
+        }
+      });
+
+      // Watch for wishlist data changes in state and update script
+      const { data: wishlistDataState, wishlistItemIds: wishlistIds } = useWishlist();
+      
+      // Function to update wishlist in script
+      const updateWishlistInScript = async () => {
+        const enabled = isSettingEnabled(getUptainEnabled());
+        const uptainId = getValidUptainId();
+        if (!enabled || !uptainId) return;
+        if (!shouldBlockCookies() || !checkCookieConsent()) return;
+        
+        const currentScript = document.getElementById('__up_data_qp');
+        if (currentScript) {
+          const product = getProductFromState();
+          const data = await getAllData(product);
+          if (data && data.wishlist) {
+            currentScript.setAttribute('data-wishlist', data.wishlist);
+            console.log('[Uptain] Updated wishlist in script:', data.wishlist);
+            
+            logScriptData(currentScript);
+            if (window._upEventBus) {
+              window._upEventBus.publish('uptain.readData');
+            }
+          }
+        }
+      };
+      
+      // Watch for wishlist data changes
+      watch(
+        () => wishlistDataState.value,
+        async (wishlistData) => {
+          if (wishlistData && wishlistData.length > 0) {
+            console.log('[Uptain] Wishlist data changed in state, length:', wishlistData.length);
+            await updateWishlistInScript();
+          }
+        },
+        { deep: true, immediate: true },
+      );
+      
+      // Also watch for wishlistItemIds changes (when items are added/removed)
+      watch(
+        () => wishlistIds.value,
+        async (ids) => {
+          if (ids && ids.length > 0) {
+            console.log('[Uptain] Wishlist IDs changed:', ids);
+            // Wait a bit for data to be fetched, then update
+            await nextTick();
+            setTimeout(async () => {
+              await updateWishlistInScript();
+            }, 500);
+          }
+        },
+        { deep: true, immediate: true },
+      );
     }
   }
 });
