@@ -1,5 +1,5 @@
 import type { Cart, CartItem, Product, User, Order } from '@plentymarkets/shop-api';
-import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters, tagGetters, shippingProviderGetters, paymentProviderGetters, userAddressGetters, AddressType } from '@plentymarkets/shop-api';
+import { cartGetters, productGetters, productPropertyGetters, orderGetters, categoryGetters, categoryTreeGetters, tagGetters, shippingProviderGetters, paymentProviderGetters, userAddressGetters, AddressType } from '@plentymarkets/shop-api';
 
 export const useUptainData = () => {
   const route = useRoute();
@@ -312,6 +312,7 @@ export const useUptainData = () => {
   };
 
   const getProductData = (product: Product | null) => {
+    console.log('[Uptain] getProductData called with product:', product ? 'exists' : 'null');
     if (!product) {
       console.warn('[Uptain] getProductData: product is null or undefined');
       return null;
@@ -322,6 +323,8 @@ export const useUptainData = () => {
       console.warn('[Uptain] getProductData: product is an empty object');
       return null;
     }
+    
+    console.log('[Uptain] getProductData: product has data, processing...');
 
     const productId = productGetters.getId(product)?.toString() || '';
     const productName = productGetters.getName(product) || '';
@@ -376,17 +379,134 @@ export const useUptainData = () => {
 
     const variants: string[] = [];
 
+    // Debug: Log the product structure to understand where variation properties might be
+    console.log('[Uptain] Product structure for variants:', {
+      hasVariationProperties: !!product.variationProperties,
+      variationPropertiesLength: product.variationProperties?.length || 0,
+      hasVariation: !!product.variation,
+      variationKeys: product.variation ? Object.keys(product.variation) : [],
+      hasProperties: !!product.properties,
+      propertiesLength: product.properties?.length || 0,
+      hasAttributes: !!(product as any).attributes,
+      attributesLength: (product as any).attributes?.length || 0,
+      hasGroupedAttributes: !!(product as any).groupedAttributes,
+      groupedAttributesLength: (product as any).groupedAttributes?.length || 0,
+      productKeys: Object.keys(product),
+    });
+
     // Extract variants from variationProperties
-    if (product.variationProperties) {
-      product.variationProperties.forEach((group) => {
-        group.properties?.forEach((prop: any) => {
-          const name = prop.names?.name || '';
-          const value = prop.values?.value || '';
-          if (name && value) {
-            variants.push(`${name}:${value}`);
+    // Use the same approach as formatVariationProperties in ItemDataHelpers.ts
+    // First try product.variationProperties directly
+    if (product.variationProperties && Array.isArray(product.variationProperties)) {
+      console.log('[Uptain] Found product.variationProperties, processing...');
+      product.variationProperties.forEach((group: any) => {
+        if (group.properties && Array.isArray(group.properties)) {
+          group.properties.forEach((prop: any) => {
+            // Use direct access like formatVariationProperties: prop.names?.name and prop.values?.value
+            const value = prop.values?.value;
+            if (!value) return;
+            
+            const name = prop.names?.name ?? '';
+            if (name && value) {
+              variants.push(`${name}:${value}`);
+            } else if (value) {
+              // If no name, just use the value
+              variants.push(value);
+            }
+          });
+        }
+      });
+    }
+    
+    // If no variants found, try productGetters.getPropertyGroups() (same as VariationProperties component)
+    if (variants.length === 0) {
+      const variationPropertyGroups = productGetters.getPropertyGroups(product);
+      console.log('[Uptain] Trying getPropertyGroups, result:', variationPropertyGroups);
+      if (variationPropertyGroups && Array.isArray(variationPropertyGroups) && variationPropertyGroups.length > 0) {
+        variationPropertyGroups.forEach((group: any) => {
+          if (group.properties && Array.isArray(group.properties)) {
+            group.properties.forEach((prop: any) => {
+              // Use productPropertyGetters to get name and value
+              const name = productPropertyGetters.getPropertyName(prop) || '';
+              const value = productPropertyGetters.getPropertyValue(prop) || '';
+              console.log('[Uptain] Property from getPropertyGroups:', { name, value });
+              if (name && value) {
+                variants.push(`${name}:${value}`);
+              } else if (value) {
+                variants.push(value);
+              }
+            });
           }
         });
+      }
+    }
+    
+    // If still no variants, try product.properties (maybe they're stored there)
+    if (variants.length === 0 && product.properties && Array.isArray(product.properties)) {
+      console.log('[Uptain] Trying product.properties, length:', product.properties.length);
+      product.properties.forEach((prop: any) => {
+        // Check if this property is a variation property
+        const name = productPropertyGetters.getPropertyName(prop) || '';
+        const value = productPropertyGetters.getPropertyValue(prop) || '';
+        if (name && value) {
+          console.log('[Uptain] Property from product.properties:', { name, value });
+          variants.push(`${name}:${value}`);
+        }
       });
+    }
+    
+    // Try product.attributes or product.groupedAttributes
+    if (variants.length === 0 && (product as any).attributes && Array.isArray((product as any).attributes)) {
+      console.log('[Uptain] Trying product.attributes, length:', (product as any).attributes.length);
+      (product as any).attributes.forEach((attr: any, index: number) => {
+        // Attributes have structure: { attribute: { backendName: "..." }, value: { backendName: "..." } }
+        // Extract name from attribute.backendName
+        const name = attr.attribute?.backendName ||
+                    attr.attribute?.name || 
+                    attr.attribute?.names?.name || 
+                    attr.name ||
+                    '';
+        // Extract value from value.backendName
+        const value = attr.value?.backendName ||
+                     attr.value?.value ||
+                     attr.values?.value || 
+                     attr.value ||
+                     '';
+        console.log(`[Uptain] Attribute ${index} extracted:`, { name, value, attrStructure: { hasAttribute: !!attr.attribute, hasValue: !!attr.value } });
+        if (name && value) {
+          console.log('[Uptain] Attribute from product.attributes:', { name, value });
+          variants.push(`${name}:${value}`);
+        }
+      });
+    }
+    
+    if (variants.length === 0 && (product as any).groupedAttributes && Array.isArray((product as any).groupedAttributes)) {
+      console.log('[Uptain] Trying product.groupedAttributes, length:', (product as any).groupedAttributes.length);
+      (product as any).groupedAttributes.forEach((group: any) => {
+        if (group.attributes && Array.isArray(group.attributes)) {
+          group.attributes.forEach((attr: any) => {
+            const name = attr.name || attr.names?.name || '';
+            const value = attr.value || attr.values?.value || '';
+            if (name && value) {
+              console.log('[Uptain] Attribute from product.groupedAttributes:', { name, value });
+              variants.push(`${name}:${value}`);
+            }
+          });
+        }
+      });
+    }
+    
+    console.log('[Uptain] Product variants result:', variants, 
+               'count:', variants.length,
+               'from product.variationProperties:', product.variationProperties?.length || 0,
+               'from getPropertyGroups:', productGetters.getPropertyGroups(product)?.length || 0);
+    
+    if (variants.length === 0) {
+      console.warn('[Uptain] No variants found! Full product structure:', JSON.stringify({
+        variationProperties: product.variationProperties,
+        properties: product.properties,
+        variation: product.variation,
+      }, null, 2));
     }
 
     return {

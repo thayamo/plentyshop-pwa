@@ -3,6 +3,7 @@ import { nextTick, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
 import { useProduct } from '~/composables/useProduct/useProduct';
 import { createProductParams } from '~/utils/productHelper';
+import { productGetters } from '@plentymarkets/shop-api';
 import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
 
 export default defineNuxtPlugin(() => {
@@ -78,6 +79,15 @@ export default defineNuxtPlugin(() => {
       'color:#9ca3af;',
     );
     console.table(rows);
+    
+    // Check product-variants specifically
+    const productVariants = script.getAttribute('data-product-variants');
+    if (productVariants !== null) {
+      console.log('%c[Uptain] data-product-variants:', 'color: #fbbf24; font-weight: bold;', productVariants || '(empty string)');
+    } else {
+      console.log('%c[Uptain] data-product-variants:', 'color: #ef4444; font-weight: bold;', 'NOT SET');
+    }
+    
     extraTables.forEach(({ title, rows: tableRows }) => {
       console.groupCollapsed(`%c${title}`, 'background:#111;color:#fbbf24;padding:2px 6px;border-radius:4px;');
       console.table(tableRows);
@@ -112,33 +122,41 @@ export default defineNuxtPlugin(() => {
         const { productParams } = createProductParams(route.params);
         const productId = productParams.id.toString();
         if (productId) {
-          // Try multiple sources for product data
-          const { currentProduct } = useProducts();
-          const { productForEditor, data: productData } = useProduct(productId);
+          // Helper function to get product from all sources
+          const getProductFromAllSources = () => {
+            const { currentProduct } = useProducts();
+            const { productForEditor, data: productData } = useProduct(productId);
+            
+            return currentProduct.value && Object.keys(currentProduct.value).length > 0
+              ? currentProduct.value
+              : (productForEditor.value && Object.keys(productForEditor.value).length > 0
+                ? productForEditor.value
+                : (productData.value && Object.keys(productData.value).length > 0
+                  ? productData.value
+                  : null));
+          };
           
-          // Priority: currentProduct > productForEditor > data
-          product = currentProduct.value && Object.keys(currentProduct.value).length > 0
-            ? currentProduct.value
-            : (productForEditor.value && Object.keys(productForEditor.value).length > 0
-              ? productForEditor.value
-              : (productData.value && Object.keys(productData.value).length > 0
-                ? productData.value
-                : null));
+          // Try to get product immediately
+          product = getProductFromAllSources();
+          
+          console.log('[Uptain] Initial product check:', {
+            hasProduct: !!product,
+            productKeys: product ? Object.keys(product).length : 0,
+            routePath: route.path,
+            isProductPage: route.path.includes('/product/'),
+          });
           
           if (product) {
-            console.log('[Uptain] Product found:', product ? 'exists' : 'null', 'source:', 
-              currentProduct.value && Object.keys(currentProduct.value).length > 0 ? 'currentProduct' :
-              productForEditor.value && Object.keys(productForEditor.value).length > 0 ? 'productForEditor' : 'data');
+            console.log('[Uptain] Product found immediately on initial load');
           } else {
-            console.warn('[Uptain] Product not found, currentProduct:', currentProduct.value, 
-              'productForEditor:', productForEditor.value, 'data:', productData.value);
+            console.log('[Uptain] Product not available yet, will create script and update when product loads');
           }
         }
       }
     }
     
     const data = await getAllData(product);
-    console.log('[Uptain] getAllData returned:', data ? 'data exists' : 'null');
+    console.log('[Uptain] getAllData returned:', data ? 'data exists' : 'null', 'hasProductData:', data && Object.keys(data).some(k => k.startsWith('product-')));
     if (!data) {
       console.warn('[Uptain] No data returned from getAllData, script not loaded');
       return;
@@ -155,16 +173,100 @@ export default defineNuxtPlugin(() => {
     script.async = true;
 
     // Add all data attributes
+    let productAttributesInScript = 0;
     Object.entries(data).forEach(([key, value]) => {
-      if (value && value !== '') {
+      // Always set product-variants, even if empty (it's a required field)
+      if (key === 'product-variants') {
+        script.setAttribute(`data-${key}`, String(value || ''));
+        productAttributesInScript++;
+      } else if (value && value !== '') {
         script.setAttribute(`data-${key}`, String(value));
+        if (key.startsWith('product-')) {
+          productAttributesInScript++;
+        }
       }
     });
+    console.log('[Uptain] Script created with', productAttributesInScript, 'product attributes');
 
     // Append to body
     document.body.appendChild(script);
     console.log('[Uptain] Script appended to body:', script.src);
     logScriptData(script);
+    
+    // If on product page and product not found (or empty), wait for it and update script
+    const hasValidProduct = product && Object.keys(product).length > 0;
+    if (process.client && route.path.includes('/product/') && !hasValidProduct) {
+      console.log('[Uptain] Starting background check for product...', { hasProduct: !!product, productKeys: product ? Object.keys(product).length : 0 });
+      const itemId = route.params.itemId as string;
+      if (itemId) {
+        const { productParams } = createProductParams(route.params);
+        const productId = productParams.id.toString();
+        if (productId) {
+          console.log('[Uptain] Product not found on initial load, starting background check...');
+          
+          // Wait for product and update script (non-blocking, but more aggressive)
+          (async () => {
+            const getProductFromAllSources = () => {
+              const { currentProduct } = useProducts();
+              const { productForEditor, data: productData } = useProduct(productId);
+              
+              return currentProduct.value && Object.keys(currentProduct.value).length > 0
+                ? currentProduct.value
+                : (productForEditor.value && Object.keys(productForEditor.value).length > 0
+                  ? productForEditor.value
+                  : (productData.value && Object.keys(productData.value).length > 0
+                    ? productData.value
+                    : null));
+            };
+            
+            const startTime = Date.now();
+            const maxWait = 15000; // 15 seconds
+            const checkInterval = 200; // Check every 200ms
+            
+            while ((Date.now() - startTime) < maxWait) {
+              await new Promise(resolve => setTimeout(resolve, checkInterval));
+              
+              const foundProduct = getProductFromAllSources();
+              if (foundProduct && Object.keys(foundProduct).length > 0) {
+                const waitTime = Date.now() - startTime;
+                console.log(`[Uptain] Background check: Product found after ${waitTime}ms, updating script with product data`);
+                
+                const currentScript = document.getElementById('__up_data_qp');
+                if (currentScript) {
+                  const productData = await getAllData(foundProduct);
+                  if (productData) {
+                    let attributesSet = 0;
+                    Object.entries(productData).forEach(([key, value]) => {
+                      if (key.startsWith('product-')) {
+                        if (key === 'product-variants') {
+                          currentScript.setAttribute(`data-${key}`, String(value || ''));
+                          attributesSet++;
+                        } else if (value && value !== '') {
+                          currentScript.setAttribute(`data-${key}`, String(value));
+                          attributesSet++;
+                        }
+                      }
+                    });
+                    console.log(`[Uptain] Background check: Set ${attributesSet} product attributes`);
+                    logScriptData(currentScript);
+                    if (window._upEventBus) {
+                      window._upEventBus.publish('uptain.readData');
+                    }
+                  }
+                } else {
+                  console.warn('[Uptain] Background check: Script not found, cannot update');
+                }
+                break; // Product found and updated, stop waiting
+              }
+            }
+            
+            if ((Date.now() - startTime) >= maxWait) {
+              console.warn('[Uptain] Background check: Product not found after 15 seconds');
+            }
+          })();
+        }
+      }
+    }
 
     // Initialize event bus if not exists
     if (typeof window !== 'undefined' && !window._upEventBus) {
@@ -432,7 +534,10 @@ export default defineNuxtPlugin(() => {
               
               // Set or update all attributes from new data
               Object.entries(data).forEach(([key, value]) => {
-                if (value && value !== '') {
+                // Always set product-variants, even if empty (it's a required field)
+                if (key === 'product-variants') {
+                  currentScript.setAttribute(`data-${key}`, String(value || ''));
+                } else if (value && value !== '') {
                   currentScript.setAttribute(`data-${key}`, String(value));
                 } else {
                   // Only remove if not in Table A (Table A attributes should always be present)
@@ -459,6 +564,62 @@ export default defineNuxtPlugin(() => {
     if (process.client) {
       const { on: onPlentyEvent } = usePlentyEvent();
       
+      // Function to update product data in script
+      const updateProductDataInScript = async (product: any) => {
+        if (!product || Object.keys(product).length === 0) {
+          console.warn('[Uptain] updateProductDataInScript: product is empty');
+          return;
+        }
+        
+        const enabled = isSettingEnabled(getUptainEnabled());
+        const uptainId = getValidUptainId();
+        if (!enabled || !uptainId) {
+          console.warn('[Uptain] updateProductDataInScript: not enabled or no ID');
+          return;
+        }
+        if (!shouldBlockCookies() || !checkCookieConsent()) {
+          console.warn('[Uptain] updateProductDataInScript: cookies blocked or no consent');
+          return;
+        }
+        
+        console.log('[Uptain] updateProductDataInScript called with product:', product);
+        const currentScript = document.getElementById('__up_data_qp');
+        if (currentScript) {
+          const data = await getAllData(product);
+          console.log('[Uptain] getAllData returned:', data);
+          if (data) {
+            // Update product-related attributes
+            let productAttributesSet = 0;
+            Object.entries(data).forEach(([key, value]) => {
+              if (key.startsWith('product-')) {
+                // Always set product-variants, even if empty (it's a required field)
+                if (key === 'product-variants') {
+                  currentScript.setAttribute(`data-${key}`, String(value || ''));
+                  console.log('[Uptain] Set product attribute:', key, value || '');
+                  productAttributesSet++;
+                } else if (value && value !== '') {
+                  currentScript.setAttribute(`data-${key}`, String(value));
+                  console.log('[Uptain] Set product attribute:', key, value);
+                  productAttributesSet++;
+                }
+              }
+            });
+            console.log('[Uptain] Total product attributes set:', productAttributesSet);
+            
+            logScriptData(currentScript);
+            // Trigger data read
+            if (window._upEventBus) {
+              window._upEventBus.publish('uptain.readData');
+            }
+          } else {
+            console.warn('[Uptain] updateProductDataInScript: getAllData returned null/undefined');
+          }
+        } else {
+          console.warn('[Uptain] updateProductDataInScript: script not found, will be created on next route change');
+          // Don't reload script here - it will be created on next route change or by the continuous check
+        }
+      };
+
       // Listen to productLoaded event to update product data
       onPlentyEvent('frontend:productLoaded', async (eventData: { product: any }) => {
         const product = eventData?.product;
@@ -467,35 +628,121 @@ export default defineNuxtPlugin(() => {
           return;
         }
         
-        const enabled = isSettingEnabled(getUptainEnabled());
-        const uptainId = getValidUptainId();
-        if (!enabled || !uptainId) return;
-        if (!shouldBlockCookies() || !checkCookieConsent()) return;
-        
         console.log('[Uptain] frontend:productLoaded event received, updating script data', product);
-        const currentScript = document.getElementById('__up_data_qp');
-        if (currentScript) {
-          const data = await getAllData(product);
-          if (data) {
-            // Update product-related attributes
-            Object.entries(data).forEach(([key, value]) => {
-              if (key.startsWith('product-') && value && value !== '') {
-                currentScript.setAttribute(`data-${key}`, String(value));
-                console.log('[Uptain] Set product attribute:', key, value);
-              }
-            });
-            
-            logScriptData(currentScript);
-            // Trigger data read
-            if (window._upEventBus) {
-              window._upEventBus.publish('uptain.readData');
-            }
-          }
-        } else {
-          // Script doesn't exist yet, reload it
-          await loadUptainScript();
-        }
+        await updateProductDataInScript(product);
       });
+
+      // Watch for product changes on product pages (for page refresh scenarios)
+      if (route.path.includes('/product/')) {
+        const itemId = route.params.itemId as string;
+        if (itemId) {
+          const { productParams } = createProductParams(route.params);
+          const productId = productParams.id.toString();
+          if (productId) {
+            const { currentProduct } = useProducts();
+            const { productForEditor, data: productData } = useProduct(productId);
+            
+            // Function to get the best available product
+            const getBestAvailableProduct = () => {
+              return currentProduct.value && Object.keys(currentProduct.value).length > 0
+                ? currentProduct.value
+                : (productForEditor.value && Object.keys(productForEditor.value).length > 0
+                  ? productForEditor.value
+                  : (productData.value && Object.keys(productData.value).length > 0
+                    ? productData.value
+                    : null));
+            };
+            
+            // Watch currentProduct
+            watch(
+              () => currentProduct.value,
+              async (product) => {
+                if (product && Object.keys(product).length > 0) {
+                  console.log('[Uptain] currentProduct changed, updating script');
+                  await updateProductDataInScript(product);
+                }
+              },
+              { deep: true, immediate: false },
+            );
+            
+            // Watch productForEditor
+            watch(
+              () => productForEditor.value,
+              async (product) => {
+                if (product && Object.keys(product).length > 0) {
+                  console.log('[Uptain] productForEditor changed, updating script');
+                  await updateProductDataInScript(product);
+                }
+              },
+              { deep: true, immediate: false },
+            );
+            
+            // Watch productData
+            watch(
+              () => productData.value,
+              async (product) => {
+                if (product && Object.keys(product).length > 0) {
+                  console.log('[Uptain] productData changed, updating script');
+                  await updateProductDataInScript(product);
+                }
+              },
+              { deep: true, immediate: false },
+            );
+            
+            // Continuous check for product data (polling mechanism for page refresh scenarios)
+            let checkInterval: ReturnType<typeof setInterval> | null = null;
+            let lastProductHash = '';
+            
+            const checkAndUpdateProduct = async () => {
+              const product = getBestAvailableProduct();
+              if (product && Object.keys(product).length > 0) {
+                // Create a simple hash to detect changes
+                const productHash = JSON.stringify({
+                  id: productGetters.getId(product),
+                  name: productGetters.getName(product),
+                });
+                
+                // Only update if product has changed
+                if (productHash !== lastProductHash) {
+                  console.log('[Uptain] Continuous check: Product found, updating script');
+                  lastProductHash = productHash;
+                  await updateProductDataInScript(product);
+                  
+                  // Stop polling once we have the product
+                  if (checkInterval) {
+                    clearInterval(checkInterval);
+                    checkInterval = null;
+                  }
+                }
+              }
+            };
+            
+            // Start polling immediately and then every 500ms
+            checkAndUpdateProduct();
+            checkInterval = setInterval(checkAndUpdateProduct, 500);
+            
+            // Stop polling after 10 seconds (product should be loaded by then)
+            setTimeout(() => {
+              if (checkInterval) {
+                clearInterval(checkInterval);
+                checkInterval = null;
+                console.log('[Uptain] Stopped continuous product check after 10 seconds');
+              }
+            }, 10000);
+            
+            // Clean up on route change
+            watch(
+              () => route.path,
+              () => {
+                if (checkInterval) {
+                  clearInterval(checkInterval);
+                  checkInterval = null;
+                }
+              },
+            );
+          }
+        }
+      }
 
       // Listen to wishlist changes to update wishlist data
       onPlentyEvent('frontend:addToWishlist', async () => {

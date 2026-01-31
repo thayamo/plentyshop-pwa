@@ -185,7 +185,15 @@
           />
         </div>
       </div>
+    </div>
 
+    <!-- Debugging -->
+    <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
+      <div
+        style="position: absolute; top: 0; left: 0.5em; z-index: 1; transform: translateY(-50%); padding: 0 0.5em; background: #111; font-size: 0.875em; color: #696969;"
+      >
+        {{ getEditorTranslation('debuggingLabel') }}
+      </div>
       <!-- Debug mode -->
       <div class="flex justify-between">
         <div>
@@ -373,6 +381,7 @@ watch(
       "description": "Activate or deactivate the Uptain tracking script. When disabled, no scripts will be loaded."
     },
     "cookieSettingsLabel": "Cookie Settings",
+    "debuggingLabel": "Debugging",
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
@@ -407,6 +416,7 @@ watch(
       "description": "Aktivieren oder deaktivieren Sie das Uptain Tracking-Script. Wenn deaktiviert, werden keine Scripts geladen."
     },
     "cookieSettingsLabel": "Cookie-Einstellungen",
+    "debuggingLabel": "Debugging",
     "registerCookieAsOptOut": {
       "label": "Register Cookie as opt-out"
     },
