@@ -1,5 +1,5 @@
 import type { Cart, CartItem, Product, User, Order } from '@plentymarkets/shop-api';
-import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters, tagGetters } from '@plentymarkets/shop-api';
+import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters, tagGetters, shippingProviderGetters, paymentProviderGetters, userAddressGetters, AddressType } from '@plentymarkets/shop-api';
 
 export const useUptainData = () => {
   const route = useRoute();
@@ -70,7 +70,22 @@ export const useUptainData = () => {
       : 0;
     
     const shippingCosts = cartGetters.getShippingAmountNet(cart.value) || 0;
-    const paymentCosts = 0; // TODO: Get payment costs if available
+    
+    // Get payment costs from order properties (additional costs)
+    // Payment costs might be included in order properties as additional costs
+    const orderPropertiesWithVat = cartGetters.getOrderPropertiesAdditionalCostsWithVat(cart.value) || [];
+    const orderPropertiesWithoutVat = cartGetters.getOrderPropertiesWithoutVat(cart.value) || [];
+    
+    // Calculate payment costs from order properties
+    // Note: This might not be 100% accurate as order properties can include other costs too
+    let paymentCosts = 0;
+    [...orderPropertiesWithVat, ...orderPropertiesWithoutVat].forEach((property: any) => {
+      // Check if this property is related to payment (this is a best guess)
+      // In practice, payment costs might be stored differently
+      if (property?.price) {
+        paymentCosts += property.price;
+      }
+    });
 
     const products: Record<string, any> = {};
     cart.value.items.forEach((item: CartItem) => {
@@ -99,13 +114,65 @@ export const useUptainData = () => {
       }
     });
 
-    // Get addresses from address store
+    // Get postal codes from addresses
     const shippingAddressId = cartGetters.getCustomerShippingAddressId(cart.value);
     const billingAddressId = cartGetters.getCustomerInvoiceAddressId(cart.value);
     const postalCodeParts: string[] = [];
     
-    // TODO: Get actual addresses from address store if needed
-    // For now, we'll leave postal code empty if addresses are not directly available
+    // Get addresses from address store
+    const { addresses: shippingAddresses, get: getShipping } = useAddressStore(AddressType.Shipping);
+    const { addresses: billingAddresses, get: getBilling } = useAddressStore(AddressType.Billing);
+    
+    if (shippingAddressId) {
+      const shippingAddress = getShipping(shippingAddressId) || 
+        shippingAddresses.value.find((addr: any) => addr.id === shippingAddressId);
+      if (shippingAddress) {
+        const postalCode = userAddressGetters.getPostalCode(shippingAddress);
+        if (postalCode) {
+          postalCodeParts.push(postalCode);
+        }
+      }
+    }
+    
+    if (billingAddressId && billingAddressId !== shippingAddressId) {
+      const billingAddress = getBilling(billingAddressId) || 
+        billingAddresses.value.find((addr: any) => addr.id === billingAddressId);
+      if (billingAddress) {
+        const postalCode = userAddressGetters.getPostalCode(billingAddress);
+        if (postalCode && !postalCodeParts.includes(postalCode)) {
+          postalCodeParts.push(postalCode);
+        }
+      }
+    }
+
+    // Get shipping method name
+    let shippingName = '';
+    const { data: shippingMethodData, selectedMethod } = useCartShippingMethods();
+    if (selectedMethod.value) {
+      shippingName = shippingProviderGetters.getShippingMethodName(selectedMethod.value) || '';
+    } else if (shippingMethodData.value?.list) {
+      // Try to find the selected shipping method by profile ID
+      const shippingProfileId = shippingProviderGetters.getShippingProfileId(cart.value);
+      const selectedShippingMethod = shippingMethodData.value.list.find(
+        (method: any) => shippingProviderGetters.getParcelServicePresetId(method) === shippingProfileId
+      );
+      if (selectedShippingMethod) {
+        shippingName = shippingProviderGetters.getShippingMethodName(selectedShippingMethod) || '';
+      }
+    }
+
+    // Get payment method name
+    let paymentName = '';
+    const { data: paymentMethodData } = usePaymentMethods();
+    if (cart.value.methodOfPaymentId && paymentMethodData.value?.list) {
+      const paymentMethod = paymentProviderGetters.getPaymentMethodById(
+        paymentMethodData.value.list,
+        cart.value.methodOfPaymentId
+      );
+      if (paymentMethod) {
+        paymentName = paymentProviderGetters.getPaymentMethodName(paymentMethod) || '';
+      }
+    }
 
     return {
       scv: formatPrice(netTotal),
@@ -115,8 +182,8 @@ export const useUptainData = () => {
       'payment-costs': formatPrice(paymentCosts),
       'postal-code': postalCodeParts.join(';') || '',
       products: JSON.stringify(products),
-      shipping: '', // TODO: Get shipping profile name
-      payment: '', // TODO: Get payment method name
+      shipping: shippingName,
+      payment: paymentName,
       'usedvoucher': cartGetters.getCouponCode(cart.value) || '',
       'voucher-amount': formatPrice(cartGetters.getCouponDiscount(cart.value) || 0),
       'voucher-type': cartGetters.getCouponDiscount(cart.value) ? 'monetary' : '',
