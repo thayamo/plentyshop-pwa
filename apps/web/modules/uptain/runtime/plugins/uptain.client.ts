@@ -371,13 +371,33 @@ export default defineNuxtPlugin(() => {
           if (currentScript) {
             const data = await getAllData(product);
             if (data) {
+              // Define attributes that should always be present (Table A)
+              const alwaysPresentAttributes = ['plugin', 'returnurl', 'page', 'wishlist', 'comparison'];
+              
+              // Get all existing data-* attributes
+              const existingAttributes = Array.from(currentScript.getAttributeNames())
+                .filter(name => name.startsWith('data-'))
+                .map(name => name.replace(/^data-/, ''));
+              
+              // Remove all attributes that are not in the new data and not in Table A
+              existingAttributes.forEach(attr => {
+                if (!alwaysPresentAttributes.includes(attr) && !(attr in data)) {
+                  currentScript.removeAttribute(`data-${attr}`);
+                }
+              });
+              
+              // Set or update all attributes from new data
               Object.entries(data).forEach(([key, value]) => {
                 if (value && value !== '') {
                   currentScript.setAttribute(`data-${key}`, String(value));
                 } else {
-                  currentScript.removeAttribute(`data-${key}`);
+                  // Only remove if not in Table A (Table A attributes should always be present)
+                  if (!alwaysPresentAttributes.includes(key)) {
+                    currentScript.removeAttribute(`data-${key}`);
+                  }
                 }
               });
+              
               logScriptData(currentScript);
               // Trigger data read
               if (window._upEventBus) {
