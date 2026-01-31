@@ -54,32 +54,48 @@ export const useUptainData = () => {
       return null;
     }
 
-    const netTotal = cartGetters.getNetTotal(cart.value);
-    const currency = cart.value.currency || 'EUR';
-    const taxAmount = cartGetters.getTaxTotal(cart.value);
-    const shippingCosts = cartGetters.getShippingTotal(cart.value) || 0;
+    const totals = cartGetters.getTotals(cart.value);
+    const netTotal = cartGetters.getBasketAmountNet(cart.value);
+    const currency = cartGetters.getCurrency(cart.value) || 'EUR';
+    
+    // Calculate total tax amount from all VATs
+    const taxAmount = totals.totalVats?.reduce((sum, vat) => {
+      return sum + (cartGetters.getTotalVatAmount(vat) || 0);
+    }, 0) || 0;
+    
+    const shippingCosts = cartGetters.getShippingAmountNet(cart.value) || 0;
     const paymentCosts = 0; // TODO: Get payment costs if available
 
     const products: Record<string, any> = {};
     cart.value.items.forEach((item: CartItem) => {
       const productId = item.variation?.id?.toString() || '';
       if (productId) {
+        const variationName = item.variation?.name || '';
+        const properties = item.variation?.properties || [];
+        const variants = properties
+          .map((prop: any) => {
+            const name = prop.name || '';
+            const value = prop.value || '';
+            return name && value ? `${name}:${value}` : '';
+          })
+          .filter(Boolean)
+          .join(';');
+        
         products[productId] = {
           amount: item.quantity,
-          name: item.variation?.name || '',
-          variants: item.variation?.properties?.map((prop) => `${prop.name}:${prop.value}`).join(';') || '',
+          name: variationName,
+          variants: variants || '',
         };
       }
     });
 
-    const deliveryAddress = cart.value.shippingAddress;
-    const billingAddress = cart.value.billingAddress;
-    const postalCode = [
-      deliveryAddress?.postalCode ? `delivery:${deliveryAddress.postalCode}` : '',
-      billingAddress?.postalCode ? `accounting:${billingAddress.postalCode}` : '',
-    ]
-      .filter(Boolean)
-      .join(';');
+    // Get addresses from address store
+    const shippingAddressId = cartGetters.getCustomerShippingAddressId(cart.value);
+    const billingAddressId = cartGetters.getCustomerInvoiceAddressId(cart.value);
+    const postalCodeParts: string[] = [];
+    
+    // TODO: Get actual addresses from address store if needed
+    // For now, we'll leave postal code empty if addresses are not directly available
 
     return {
       scv: formatPrice(netTotal),
@@ -87,13 +103,13 @@ export const useUptainData = () => {
       'tax-amount': formatPrice(taxAmount),
       'shipping-costs': formatPrice(shippingCosts),
       'payment-costs': formatPrice(paymentCosts),
-      'postal-code': postalCode || '',
+      'postal-code': postalCodeParts.join(';') || '',
       products: JSON.stringify(products),
-      shipping: cart.value.shippingProfile?.name || '',
-      payment: cart.value.methodOfPayment?.name || '',
-      'usedvoucher': cart.value.couponCode || '',
-      'voucher-amount': formatPrice(cart.value.couponDiscount || 0),
-      'voucher-type': cart.value.couponDiscount ? 'monetary' : '',
+      shipping: '', // TODO: Get shipping profile name
+      payment: '', // TODO: Get payment method name
+      'usedvoucher': cartGetters.getCouponCode(cart.value) || '',
+      'voucher-amount': formatPrice(cartGetters.getCouponDiscount(cart.value) || 0),
+      'voucher-type': cartGetters.getCouponDiscount(cart.value) ? 'monetary' : '',
     };
   };
 
@@ -102,21 +118,28 @@ export const useUptainData = () => {
 
     const productId = productGetters.getId(product)?.toString() || '';
     const productName = productGetters.getName(product) || '';
-    const productPrice = productGetters.getPrice(product)?.net || 0;
-    const originalPrice = productGetters.getOriginalPrice(product)?.net || productPrice;
+    const productPrice = productGetters.getPrice(product) || 0;
+    const originalPrice = productGetters.getCrossedPrice(product) || productPrice;
     const productImage = productGetters.getCoverImage(product) || '';
-    const productCategory = productGetters.getCategoryNames(product)?.[0] || '';
-    const categoryPaths = productGetters.getCategoryNames(product)?.join('/') || '';
+    const categoryIds = productGetters.getCategoryIds(product) || [];
+    const productCategory = categoryIds[0]?.toString() || '';
+    const categoryPaths = categoryIds.join('/') || '';
 
     const tags: string[] = [];
     const variants: string[] = [];
 
-    // Extract variants
-    product.variations?.forEach((variation) => {
-      variation.properties?.forEach((prop) => {
-        variants.push(`${prop.name}:${prop.value}`);
+    // Extract variants from variationProperties
+    if (product.variationProperties) {
+      product.variationProperties.forEach((group) => {
+        group.properties?.forEach((prop: any) => {
+          const name = prop.names?.name || '';
+          const value = prop.values?.value || '';
+          if (name && value) {
+            variants.push(`${name}:${value}`);
+          }
+        });
       });
-    });
+    }
 
     return {
       'product-id': productId,
