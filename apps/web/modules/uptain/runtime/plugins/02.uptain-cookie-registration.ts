@@ -1,4 +1,5 @@
 import type { Cookie } from '@plentymarkets/shop-core';
+import { useUptainData } from '../composables/useUptainData';
 
 /**
  * Plugin to register Uptain cookies in the cookie consent manager
