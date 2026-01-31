@@ -29,11 +29,15 @@ export default defineNuxtPlugin(() => {
 
   // Get cookie groups and add Uptain cookie to the configured group
   const { cookieGroups } = useCookieBar();
+  const { getUptainId } = useUptainData();
 
   if (cookieGroups.value) {
     const targetGroup = cookieGroups.value.find((group) => group.name === configuredCookieGroup);
     
     if (targetGroup) {
+      const uptainId = getUptainId();
+      if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return;
+
       const uptainCookie: Cookie = {
         name: 'CookieBar.uptain.cookies.uptain.name',
         Provider: 'CookieBar.uptain.cookies.uptain.provider',
@@ -41,6 +45,7 @@ export default defineNuxtPlugin(() => {
         PrivacyPolicy: '/PrivacyPolicy',
         Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
         accepted: !registerAsOptOut, // If opt-out, start as not accepted
+        // Note: Script loading is handled by uptain.client.ts plugin to support dynamic data attributes
       };
 
       // Check if cookie already exists to avoid duplicates
