@@ -1,5 +1,5 @@
 import type { Cart, CartItem, Product, User, Order } from '@plentymarkets/shop-api';
-import { cartGetters, productGetters, orderGetters } from '@plentymarkets/shop-api';
+import { cartGetters, productGetters, orderGetters, categoryGetters, categoryTreeGetters } from '@plentymarkets/shop-api';
 
 export const useUptainData = () => {
   const route = useRoute();
@@ -165,8 +165,68 @@ export const useUptainData = () => {
   };
 
   const getCategoryData = () => {
-    // TODO: Implement category data collection
-    return null;
+    const path = route.path;
+    // Check if we're on a category page (not product, cart, checkout, etc.)
+    if (!path.includes('/category/') && !path.includes('/tag/') && path !== '/' && !path.match(/^\/[^\/]+$/)) {
+      return null;
+    }
+
+    // Get products catalog (category data)
+    const { data: productsCatalog } = useProducts();
+    if (!productsCatalog.value?.category) {
+      return null;
+    }
+
+    const category = productsCatalog.value.category;
+    const categoryName = categoryGetters.getCategoryName(category) || '';
+    
+    // Get category path from breadcrumb
+    const { data: categoryTree } = useCategoryTree();
+    let categoryPath = '';
+    if (categoryTree.value) {
+      const breadcrumb = categoryTreeGetters.generateBreadcrumbFromCategory(
+        categoryTree.value,
+        categoryGetters.getId(category),
+      );
+      // Extract category names from breadcrumb (excluding home)
+      const categoryNames = breadcrumb
+        .filter((item) => item.link !== '/')
+        .map((item) => item.name)
+        .filter(Boolean);
+      categoryPath = categoryNames.join(';');
+    }
+
+    // Get products on the category page
+    const products = productsCatalog.value.products || [];
+    const categoryProducts: Record<string, any> = {};
+    products.forEach((product: Product) => {
+      const productId = productGetters.getId(product)?.toString() || '';
+      if (productId) {
+        const productName = productGetters.getName(product) || '';
+        const productPrice = productGetters.getPrice(product) || 0;
+        const originalPrice = productGetters.getCrossedPrice(product) || productPrice;
+        const productImage = productGetters.getCoverImage(product) || '';
+
+        categoryProducts[productId] = {
+          name: productName,
+          price: formatPrice(productPrice),
+          'original-price': formatPrice(originalPrice),
+          image: productImage,
+        };
+      }
+    });
+
+    // Get sorting from URL
+    const { getFacetsFromURL } = useCategoryFilter();
+    const facets = getFacetsFromURL();
+    const categorySorting = facets.sort || 'default';
+
+    return {
+      'category-name': categoryName,
+      'category-path': categoryPath,
+      'category-products': JSON.stringify(categoryProducts),
+      'category-sorting': categorySorting,
+    };
   };
 
   const getSearchData = () => {
