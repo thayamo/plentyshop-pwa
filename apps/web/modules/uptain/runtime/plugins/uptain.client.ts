@@ -117,10 +117,25 @@ export default defineNuxtPlugin(() => {
     return uptainCookieGroup?.accepted ?? false;
   };
 
+  const getStoredUptainConsent = (groupName: string): boolean | null => {
+    const consentCookie = useCookie<string>('consent-cookie');
+    if (!consentCookie.value) return null;
+    try {
+      const parsed = JSON.parse(consentCookie.value);
+      const stored = parsed?.groups?.[groupName]?.['CookieBar.uptain.cookies.uptain.name'];
+      return typeof stored === 'boolean' ? stored : null;
+    } catch {
+      return null;
+    }
+  };
+
   const syncCookieOptOutState = () => {
     const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
     const groups = cookieGroups.value;
     if (!groups) return;
+
+    const groupName = (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
+    const storedConsent = getStoredUptainConsent(groupName);
 
     const uptainCookie = groups
       .flatMap((group) => group.cookies || [])
@@ -131,9 +146,21 @@ export default defineNuxtPlugin(() => {
     const desiredStatus = registerAsOptOut
       ? 'CookieBar.uptain.cookies.uptain.status.optOut'
       : 'CookieBar.uptain.cookies.uptain.status';
+    const desiredAccepted =
+      storedConsent !== null ? storedConsent : registerAsOptOut ? true : false;
 
     if (uptainCookie.Status !== desiredStatus) {
       uptainCookie.Status = desiredStatus;
+    }
+    if (uptainCookie.accepted !== desiredAccepted) {
+      uptainCookie.accepted = desiredAccepted;
+    }
+
+    const uptainGroup = groups.find((group) =>
+      (group.cookies || []).some((cookie) => cookie.name === uptainCookie.name),
+    );
+    if (uptainGroup) {
+      uptainGroup.accepted = (uptainGroup.cookies || []).some((cookie) => cookie.accepted);
     }
   };
 
