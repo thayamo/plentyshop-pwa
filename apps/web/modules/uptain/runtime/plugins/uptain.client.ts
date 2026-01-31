@@ -104,17 +104,16 @@ export default defineNuxtPlugin(() => {
   const checkCookieConsent = (): boolean => {
     if (!shouldBlockCookies()) return true;
 
-    // Get the configured cookie group from settings
-    const configuredCookieGroupValue =
-      (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
+    const groupName = (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
+    const storedConsent = getStoredUptainConsent(groupName, consentCookie.value ?? null);
+    const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
 
-    // Find the cookie group that matches the configured value
-    // The value is a translation key like 'CookieBar.functional.label'
-    const uptainCookieGroup = cookieGroups.value?.find((group: CookieGroup) => {
-      return group.name === configuredCookieGroupValue;
-    });
+    // Opt-in: require stored consent. Opt-out: default to true unless explicitly denied.
+    if (registerAsOptOut) {
+      return storedConsent !== null ? storedConsent : true;
+    }
 
-    return uptainCookieGroup?.accepted ?? false;
+    return storedConsent !== null ? storedConsent : false;
   };
 
   const consentCookie = useCookie<string>('consent-cookie');
