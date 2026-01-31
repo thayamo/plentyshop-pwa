@@ -1,7 +1,13 @@
 <template>
-  <div class="py-2 space-y-4">
+  <div
+    class="space-y-4"
+    style="background: #111111; color: #fff; height: 100%; margin-inline: -1rem; margin-block: -0.5em; padding: 1rem;"
+  >
     <!-- Uptain Logo -->
-    <div class="w-full rounded-lg p-4" style="background-color: #111;">
+    <div
+      class="w-full rounded-lg p-4"
+      style="background-color: rgb(17 17 17); box-shadow: inset 0px 0px 0px 1px #ffffff12, 0px 5px 5px -5px #000000;"
+    >
       <div class="flex justify-center">
         <svg class="logo--dark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140.71 50" style="width: 100px;">
           <path d="M31.06 9.63L22.54 0 14 9.63h5v17.28c0 4.49-1.56 6.45-6.06 6.48s-6-2-6-6.48V10.09C-.65 12.21-.09 19.9.08 26c-.69 13 14.07 17.55 22.46 9.92C28 31.34 25.42 16 26 9.63zm23.57 8.54c-1.58-5.54-6.57-8.44-11.84-8.33-6.94-.15-11.91 3.27-12.09 9.67V50c5.53-1.59 7.41-6.62 6.91-10.93C52 42.44 58.46 31 54.63 18.17zM47 32.23c-2.13 2.47-6 2.07-9.35 1.62v-15c-.49-3.7 8.37-4.22 9.79-.84C49.07 20.45 49.39 30 47 32.23z" fill="#31b9b5"></path>
@@ -33,7 +39,7 @@
       <UiFormLabel class="mb-1">{{ getEditorTranslation('blockCookies.label') }}</UiFormLabel>
       <SfSwitch
         v-model="blockCookiesInitially"
-        class="checked:bg-editor-button checked:before:hover:bg-editor-button checked:border-gray-500 checked:hover:border:bg-gray-700 hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300 checked:hover:border-gray-400"
+        class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
       />
     </div>
 
@@ -42,7 +48,7 @@
       <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitNewsletterData.label') }}</UiFormLabel>
       <SfSwitch
         v-model="transmitNewsletterData"
-        class="checked:bg-editor-button checked:before:hover:bg-editor-button checked:border-gray-500 checked:hover:border:bg-gray-700 hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300 checked:hover:border-gray-400"
+        class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
       />
     </div>
 
@@ -51,7 +57,7 @@
       <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitCustomerData.label') }}</UiFormLabel>
       <SfSwitch
         v-model="transmitCustomerData"
-        class="checked:bg-editor-button checked:before:hover:bg-editor-button checked:border-gray-500 checked:hover:border:bg-gray-700 hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300 checked:hover:border-gray-400"
+        class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
       />
     </div>
 
@@ -60,7 +66,7 @@
       <UiFormLabel class="mb-1">{{ getEditorTranslation('transmitRevenue.label') }}</UiFormLabel>
       <SfSwitch
         v-model="transmitRevenue"
-        class="checked:bg-editor-button checked:before:hover:bg-editor-button checked:border-gray-500 checked:hover:border:bg-gray-700 hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300 checked:hover:border-gray-400"
+        class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
       />
     </div>
   </div>
@@ -142,4 +148,18 @@ const transmitRevenue = computed({
   }
 }
 </i18n>
+
+<style scoped>
+.uptain-switch:checked {
+  border-color: rgb(48, 187, 181);
+}
+
+.uptain-switch:checked::before {
+  background-color: rgb(48, 187, 181);
+}
+
+.uptain-switch:checked:hover {
+  border-color: rgb(48, 187, 181);
+}
+</style>
 
