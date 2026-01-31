@@ -1,5 +1,3 @@
-import { nextTick } from 'vue';
-
 /**
  * Plugin to register Uptain cookies in the cookie consent manager
  * Uses useRegisterCookie composable from @plentymarkets/shop-core to dynamically add cookies
@@ -32,40 +30,19 @@ export default defineNuxtPlugin(() => {
   // See: https://pwa-docs.plentyone.com/guide/modules/shop-core/cookie-consent
   const { add } = useRegisterCookie();
 
-  // Register the cookie
-  add({
-    name: 'CookieBar.uptain.cookies.uptain.name',
-    Provider: 'CookieBar.uptain.cookies.uptain.provider',
-    Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
-    PrivacyPolicy: '/PrivacyPolicy',
-    Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
-    accepted: !registerAsOptOut, // If opt-out, start as not accepted
-    // Note: Script loading is handled by uptain.client.ts plugin to support dynamic data attributes
-  });
-
-  // After registering, manually add the cookie to the configured cookie group
-  // This ensures it appears in the correct group in the cookie consent manager
-  const { cookieGroups } = useCookieBar();
-  
-  // Use nextTick to ensure cookie groups are initialized
-  nextTick(() => {
-    if (cookieGroups.value) {
-      const targetGroup = cookieGroups.value.find((group) => group.name === configuredCookieGroup);
-      const registeredCookie = cookieGroups.value
-        .flatMap((group) => group.cookies || [])
-        .find((cookie) => cookie.name === 'CookieBar.uptain.cookies.uptain.name');
-      
-      if (targetGroup && registeredCookie) {
-        // Check if cookie already exists in the target group
-        const cookieExists = targetGroup.cookies?.some((cookie) => cookie.name === registeredCookie.name);
-        if (!cookieExists) {
-          if (!targetGroup.cookies) {
-            targetGroup.cookies = [];
-          }
-          targetGroup.cookies.push(registeredCookie);
-        }
-      }
-    }
-  });
+  // Register the cookie with the configured cookie group as second parameter
+  // According to TypeScript, add() expects 2 arguments: cookie object and group name
+  add(
+    {
+      name: 'CookieBar.uptain.cookies.uptain.name',
+      Provider: 'CookieBar.uptain.cookies.uptain.provider',
+      Status: registerAsOptOut ? 'CookieBar.uptain.cookies.uptain.status.optOut' : 'CookieBar.uptain.cookies.uptain.status',
+      PrivacyPolicy: '/PrivacyPolicy',
+      Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
+      accepted: !registerAsOptOut, // If opt-out, start as not accepted
+      // Note: Script loading is handled by uptain.client.ts plugin to support dynamic data attributes
+    },
+    configuredCookieGroup, // Second parameter: cookie group name
+  );
 });
 
