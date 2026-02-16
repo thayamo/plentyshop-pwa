@@ -5,9 +5,10 @@ import { parseWishlistDebugRows, tryParseJson } from '../utils/debugAttributePar
 import { useProduct } from '~/composables/useProduct/useProduct';
 import { createProductParams } from '~/utils/productHelper';
 import { productGetters } from '@plentymarkets/shop-api';
+import type { Cart } from '@plentymarkets/shop-api';
 import type { Cookie, CookieGroup } from '@plentymarkets/shop-core';
 
-export default defineNuxtPlugin(() => {
+export default defineNuxtPlugin((nuxtApp) => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
@@ -724,10 +725,84 @@ export default defineNuxtPlugin(() => {
       },
     );
 
-    // Listen to events to update data
+    // Refresh all script data and trigger uptain.readData (e.g. after cart change without page reload).
+    // When cartFromEvent is passed (e.g. from frontend:addToCart), that cart is used so data is always current.
+    const refreshScriptDataAndNotifyUptain = async (cartFromEvent?: Cart | null) => {
+      if (!isSettingEnabled(getUptainEnabled()) || !getValidUptainId()) {
+        console.log('[Uptain] refreshScriptDataAndNotifyUptain skip: not enabled or no ID');
+        return;
+      }
+      const blockCookies = shouldBlockCookies();
+      const hasConsent = checkCookieConsent();
+      // Nur überspringen, wenn Consent nötig ist und (noch) nicht erteilt wurde.
+      if (blockCookies && !hasConsent) {
+        console.log('[Uptain] refreshScriptDataAndNotifyUptain skip: no consent yet', { blockCookies, hasConsent });
+        return;
+      }
+      const currentScript = document.getElementById('__up_data_qp');
+      if (!currentScript) {
+        console.log('[Uptain] refreshScriptDataAndNotifyUptain skip: script #__up_data_qp not found');
+        return;
+      }
+      const product = getProductFromState();
+      const data = await getAllData(product, cartFromEvent ?? undefined);
+      if (!data) {
+        console.log('[Uptain] refreshScriptDataAndNotifyUptain skip: getAllData returned null');
+        return;
+      }
+      if (data.products !== undefined) {
+        const preview = String(data.products);
+        console.log('[Uptain] refreshScriptDataAndNotifyUptain setting data-products, length:', preview.length, 'preview:', preview.length > 80 ? preview.slice(0, 80) + '...' : preview);
+      }
+      const alwaysPresentAttributes = ['plugin', 'returnurl', 'page', 'wishlist'];
+      const existingAttributes = Array.from(currentScript.getAttributeNames())
+        .filter((name) => name.startsWith('data-'))
+        .map((name) => name.replace(/^data-/, ''));
+      existingAttributes.forEach((attr) => {
+        if (!alwaysPresentAttributes.includes(attr) && !(attr in data)) {
+          currentScript.removeAttribute(`data-${attr}`);
+        }
+      });
+      Object.entries(data).forEach(([key, value]) => {
+        if (key === 'product-variants') {
+          currentScript.setAttribute(`data-${key}`, String(value || ''));
+        } else if (value && value !== '') {
+          currentScript.setAttribute(`data-${key}`, String(value));
+        } else if (!alwaysPresentAttributes.includes(key)) {
+          currentScript.removeAttribute(`data-${key}`);
+        }
+      });
+      logScriptData(currentScript);
+      if (window._upEventBus) {
+        window._upEventBus.publish('uptain.readData');
+      }
+    };
+
+    // Cart polling: prüft im Hintergrund in einem Intervall, ob sich der Warenkorb geändert hat.
+    // Nur bei Änderung wird das Uptain-Script aktualisiert – keine Events nötig, alles im Modul.
     if (process.client) {
       const { on: onPlentyEvent } = usePlentyEvent();
-      
+      const cartState = useState<{ data?: Cart }>('useCart', () => ({ data: {} as Cart, useAsShippingAddress: true, loading: false, lastUpdatedCartItem: {} }));
+
+      const getCartSignature = (cart: Cart | undefined) => {
+        if (!cart?.items?.length) return '';
+        return cart.items
+          .map((i: { id?: number; variationId?: number; quantity?: number }) => `${i?.id ?? i?.variationId ?? ''}:${i?.quantity ?? 0}`)
+          .sort()
+          .join('|');
+      };
+
+      let lastCartSignature = getCartSignature(cartState.value?.data);
+      const CART_POLL_INTERVAL_MS = 1500;
+
+      setInterval(() => {
+        const cart = cartState.value?.data;
+        const signature = getCartSignature(cart);
+        if (signature === lastCartSignature) return;
+        lastCartSignature = signature;
+        void refreshScriptDataAndNotifyUptain(cart ?? undefined);
+      }, CART_POLL_INTERVAL_MS);
+
       // Function to update product data in script
       const updateProductDataInScript = async (product: any) => {
         if (!product || Object.keys(product).length === 0) {
@@ -741,8 +816,8 @@ export default defineNuxtPlugin(() => {
           console.warn('[Uptain] updateProductDataInScript: not enabled or no ID');
           return;
         }
-        if (!shouldBlockCookies() || !checkCookieConsent()) {
-          console.warn('[Uptain] updateProductDataInScript: cookies blocked or no consent');
+        if (shouldBlockCookies() && !checkCookieConsent()) {
+          console.warn('[Uptain] updateProductDataInScript: no consent yet');
           return;
         }
         
@@ -913,8 +988,8 @@ export default defineNuxtPlugin(() => {
         const enabled = isSettingEnabled(getUptainEnabled());
         const uptainId = getValidUptainId();
         if (!enabled || !uptainId) return;
-        if (!shouldBlockCookies() || !checkCookieConsent()) return;
-        
+        if (shouldBlockCookies() && !checkCookieConsent()) return;
+
         console.log('[Uptain] frontend:addToWishlist event received, updating wishlist data');
         const currentScript = document.getElementById('__up_data_qp');
         if (currentScript) {
@@ -942,8 +1017,8 @@ export default defineNuxtPlugin(() => {
         const enabled = isSettingEnabled(getUptainEnabled());
         const uptainId = getValidUptainId();
         if (!enabled || !uptainId) return;
-        if (!shouldBlockCookies() || !checkCookieConsent()) return;
-        
+        if (shouldBlockCookies() && !checkCookieConsent()) return;
+
         const currentScript = document.getElementById('__up_data_qp');
         if (currentScript) {
           const product = getProductFromState();

@@ -4,7 +4,6 @@ import { cartGetters, productGetters, productPropertyGetters, orderGetters, cate
 export const useUptainData = () => {
   const route = useRoute();
   const runtimeConfig = useRuntimeConfig();
-  const { data: cart } = useCart();
   const { user, isAuthorized } = useCustomer();
   const { wishlistItemIds, data: wishlistData, loading: wishlistLoading, fetchWishlist } = useWishlist();
   const { getSetting } = useSiteSettings('uptainId');
@@ -186,14 +185,15 @@ export const useUptainData = () => {
     return '{}';
   };
 
-  const getCartData = () => {
-    if (!cart.value || !cart.value.items || cart.value.items.length === 0) {
+  const getCartData = (cartOverride?: Cart | null) => {
+    const cart = cartOverride ?? useCart().data.value;
+    if (!cart || !cart.items || cart.items.length === 0) {
       return null;
     }
 
-    const totals = cartGetters.getTotals(cart.value);
-    const netTotal = cartGetters.getBasketAmountNet(cart.value);
-    const currency = cartGetters.getCurrency(cart.value) || 'EUR';
+    const totals = cartGetters.getTotals(cart);
+    const netTotal = cartGetters.getBasketAmountNet(cart);
+    const currency = cartGetters.getCurrency(cart) || 'EUR';
     
     // Calculate total tax amount from all VATs
     const totalVats = totals.totalVats;
@@ -203,12 +203,11 @@ export const useUptainData = () => {
         }, 0)
       : 0;
     
-    const shippingCosts = cartGetters.getShippingAmountNet(cart.value) || 0;
-    
+    const shippingCosts = cartGetters.getShippingAmountNet(cart) || 0;
+
     // Get payment costs from order properties (additional costs)
-    // Payment costs might be included in order properties as additional costs
-    const orderPropertiesWithVat = cartGetters.getOrderPropertiesAdditionalCostsWithVat(cart.value) || [];
-    const orderPropertiesWithoutVat = cartGetters.getOrderPropertiesWithoutVat(cart.value) || [];
+    const orderPropertiesWithVat = cartGetters.getOrderPropertiesAdditionalCostsWithVat(cart) || [];
+    const orderPropertiesWithoutVat = cartGetters.getOrderPropertiesWithoutVat(cart) || [];
     
     // Calculate payment costs from order properties
     // Note: This might not be 100% accurate as order properties can include other costs too
@@ -222,7 +221,7 @@ export const useUptainData = () => {
     });
 
     const products: Record<string, { amount: number; name: string; variants?: Record<string, string> }> = {};
-    cart.value.items.forEach((item: CartItem) => {
+    cart.items.forEach((item: CartItem) => {
       const variation = cartGetters.getVariation(item);
       if (!variation) return;
 
@@ -248,8 +247,8 @@ export const useUptainData = () => {
     });
 
     // Get postal codes from addresses
-    const shippingAddressId = cartGetters.getCustomerShippingAddressId(cart.value);
-    const billingAddressId = cartGetters.getCustomerInvoiceAddressId(cart.value);
+    const shippingAddressId = cartGetters.getCustomerShippingAddressId(cart);
+    const billingAddressId = cartGetters.getCustomerInvoiceAddressId(cart);
     const postalCodeParts: string[] = [];
     
     // Get addresses from address store
@@ -285,7 +284,7 @@ export const useUptainData = () => {
       shippingName = shippingProviderGetters.getShippingMethodName(selectedMethod.value) || '';
     } else if (shippingMethodData.value?.list) {
       // Try to find the selected shipping method by profile ID
-      const shippingProfileId = shippingProviderGetters.getShippingProfileId(cart.value);
+      const shippingProfileId = shippingProviderGetters.getShippingProfileId(cart);
       const selectedShippingMethod = shippingMethodData.value.list.find(
         (method: any) => shippingProviderGetters.getParcelServicePresetId(method) === shippingProfileId
       );
@@ -297,10 +296,10 @@ export const useUptainData = () => {
     // Get payment method name
     let paymentName = '';
     const { data: paymentMethodData } = usePaymentMethods();
-    if (cart.value.methodOfPaymentId && paymentMethodData.value?.list) {
+    if (cart.methodOfPaymentId && paymentMethodData.value?.list) {
       const paymentMethod = paymentProviderGetters.getPaymentMethodById(
         paymentMethodData.value.list,
-        cart.value.methodOfPaymentId
+        cart.methodOfPaymentId
       );
       if (paymentMethod) {
         paymentName = paymentProviderGetters.getName(paymentMethod) || '';
@@ -332,9 +331,9 @@ export const useUptainData = () => {
       products: productsStr,
       shipping: shippingName,
       payment: paymentName,
-      'usedvoucher': cartGetters.getCouponCode(cart.value) || '',
-      'voucher-amount': formatPrice(cartGetters.getCouponDiscount(cart.value) || 0),
-      'voucher-type': cartGetters.getCouponDiscount(cart.value) ? 'monetary' : '',
+      'usedvoucher': cartGetters.getCouponCode(cart) || '',
+      'voucher-amount': formatPrice(cartGetters.getCouponDiscount(cart) || 0),
+      'voucher-type': cartGetters.getCouponDiscount(cart) ? 'monetary' : '',
     };
   };
 
@@ -902,7 +901,7 @@ export const useUptainData = () => {
     return personalData;
   };
 
-  const getAllData = async (product?: Product | null) => {
+  const getAllData = async (product?: Product | null, cartOverride?: Cart | null) => {
     const uptainId = getSetting() || runtimeConfig.public.uptainId || '';
     if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return null;
 
@@ -915,8 +914,8 @@ export const useUptainData = () => {
       ...(comparisonData && comparisonData !== '{}' && { comparison: comparisonData }),
     };
 
-    // Add cart data if cart has items
-    const cartData = getCartData();
+    // Add cart data if cart has items (use cartOverride when provided, e.g. from frontend:addToCart event)
+    const cartData = getCartData(cartOverride);
     if (cartData) {
       Object.assign(data, cartData);
     }
