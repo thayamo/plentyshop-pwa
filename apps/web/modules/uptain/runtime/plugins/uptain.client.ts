@@ -1,6 +1,7 @@
 import { defineNuxtPlugin, useRoute } from 'nuxt/app';
 import { nextTick, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
+import { parseWishlistDebugRows } from '../utils/debugAttributeParsers';
 import { useProduct } from '~/composables/useProduct/useProduct';
 import { createProductParams } from '~/utils/productHelper';
 import { productGetters } from '@plentymarkets/shop-api';
@@ -67,6 +68,14 @@ export default defineNuxtPlugin(() => {
           }
         } catch {
           // ignore parse errors
+        }
+      }
+
+      if (key === 'wishlist' && value) {
+        const rows = parseWishlistDebugRows(value);
+        if (rows && rows.length > 0) {
+          extraTables.push({ title: 'wishlist', rows });
+          return { key, value: `[${rows.length} items]` };
         }
       }
 
@@ -727,7 +736,7 @@ export default defineNuxtPlugin(() => {
             // Update product-related attributes
             let productAttributesSet = 0;
             Object.entries(data).forEach(([key, value]) => {
-              if (key.startsWith('product-')) {
+              if (key.startsWith('product-') || key === 'product') {
                 // Always set product-variants, even if empty (it's a required field)
                 if (key === 'product-variants') {
                   currentScript.setAttribute(`data-${key}`, String(value || ''));
@@ -972,4 +981,3 @@ declare global {
     __UPTAIN_DEBUG__?: boolean;
   }
 }
-

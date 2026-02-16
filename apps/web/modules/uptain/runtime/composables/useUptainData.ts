@@ -137,29 +137,42 @@ export const useUptainData = () => {
                    'from item.texts.name1:', item?.texts?.name1,
                    'from productGetters:', productGetters.getName(product));
         
-        // Get variants from variationProperties - the variation should have these
+        // Get variants from variationProperties as object, e.g. { size: '45' }
         const variationProperties = variation?.variationProperties || item?.variationProperties || [];
-        const variants = variationProperties
+        const variantsObj: Record<string, string> = {};
+        variationProperties
           .flatMap((group: any) => group.properties || [])
-          .map((prop: any) => {
+          .forEach((prop: any) => {
             const name = prop.names?.name || prop.name || '';
             const value = prop.values?.value || prop.value || '';
-            return name && value ? `${name}:${value}` : '';
-          })
-          .filter(Boolean)
-          .join(';');
-        
-        console.log('[Uptain] Variants:', variants, 'from properties:', variationProperties.length);
+            if (name && value) variantsObj[name] = String(value);
+          });
+        const hasVariants = Object.keys(variantsObj).length > 0;
+        console.log('[Uptain] Variants:', hasVariants ? variantsObj : '(none)', 'from properties:', variationProperties.length);
 
         wishlistProducts[productId] = {
+          amount: 1,
           name: productName,
-          variants: variants || '',
+          ...(hasVariants && { variants: variantsObj }),
         };
         
         console.log('[Uptain] Added product to wishlist:', productId, wishlistProducts[productId]);
       });
 
-      const result = JSON.stringify(wishlistProducts);
+      // Serialize with keys unquoted, string values in single quotes; omit variants when empty
+      const escapeForSingleQuoted = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const serializeVariants = (v: Record<string, string>) => {
+        const parts = Object.entries(v).map(([k, val]) => `${k}:'${escapeForSingleQuoted(val)}'`);
+        return `{${parts.join(',')}}`;
+      };
+      const entries = Object.entries(wishlistProducts).map(([id, obj]) => {
+        const parts = [`amount:${obj.amount}`, `name:'${escapeForSingleQuoted(obj.name)}'`];
+        if (obj.variants && typeof obj.variants === 'object' && Object.keys(obj.variants).length > 0) {
+          parts.push(`variants:${serializeVariants(obj.variants as Record<string, string>)}`);
+        }
+        return `${id}:{${parts.join(',')}}`;
+      });
+      const result = `{${entries.join(',')}}`;
       console.log('[Uptain] Wishlist result:', result, 'Products count:', Object.keys(wishlistProducts).length);
       return result;
     }
@@ -208,29 +221,28 @@ export const useUptainData = () => {
       }
     });
 
-    const products: Record<string, any> = {};
+    const products: Record<string, { amount: number; name: string; variants?: Record<string, string> }> = {};
     cart.value.items.forEach((item: CartItem) => {
       const variation = cartGetters.getVariation(item);
       if (!variation) return;
-      
+
       const productId = productGetters.getId(variation)?.toString() || '';
       if (productId) {
         const variationName = productGetters.getName(variation) || '';
         const variationProperties = variation.variationProperties || [];
-        const variants = variationProperties
-          .flatMap((group) => group.properties || [])
-          .map((prop: any) => {
-            const name = prop.names?.name || '';
-            const value = prop.values?.value || '';
-            return name && value ? `${name}:${value}` : '';
-          })
-          .filter(Boolean)
-          .join(';');
-        
+        const variantsObj: Record<string, string> = {};
+        variationProperties.forEach((group: any) => {
+          (group.properties || []).forEach((prop: any) => {
+            const name = prop.names?.name || prop.name || '';
+            const value = prop.values?.value || prop.value || '';
+            if (name && value) variantsObj[name] = String(value);
+          });
+        });
+        const hasVariants = Object.keys(variantsObj).length > 0;
         products[productId] = {
           amount: item.quantity,
           name: variationName,
-          variants: variants || '',
+          ...(hasVariants && { variants: variantsObj }),
         };
       }
     });
@@ -295,6 +307,21 @@ export const useUptainData = () => {
       }
     }
 
+    // Same format as wishlist: keys unquoted, single quotes for values, variants as object and omitted when empty
+    const escapeForSingleQuoted = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const serializeVariants = (v: Record<string, string>) => {
+      const parts = Object.entries(v).map(([k, val]) => `${k}:'${escapeForSingleQuoted(val)}'`);
+      return `{${parts.join(',')}}`;
+    };
+    const cartProductEntries = Object.entries(products).map(([id, obj]) => {
+      const parts = [`amount:${obj.amount}`, `name:'${escapeForSingleQuoted(obj.name)}'`];
+      if (obj.variants && Object.keys(obj.variants).length > 0) {
+        parts.push(`variants:${serializeVariants(obj.variants)}`);
+      }
+      return `${id}:{${parts.join(',')}}`;
+    });
+    const productsStr = Object.keys(products).length > 0 ? `{${cartProductEntries.join(',')}}` : '{}';
+
     return {
       scv: formatPrice(netTotal),
       currency,
@@ -302,7 +329,7 @@ export const useUptainData = () => {
       'shipping-costs': formatPrice(shippingCosts),
       'payment-costs': formatPrice(paymentCosts),
       'postal-code': postalCodeParts.join(';') || '',
-      products: JSON.stringify(products),
+      products: productsStr,
       shipping: shippingName,
       payment: paymentName,
       'usedvoucher': cartGetters.getCouponCode(cart.value) || '',
@@ -377,7 +404,12 @@ export const useUptainData = () => {
       productCategory = categoryIds[0]?.toString() || '';
     }
 
-    const variants: string[] = [];
+    const variantsObj: Record<string, string> = {};
+
+    const addVariant = (name: string, value: string) => {
+      if (name && value) variantsObj[name] = String(value);
+      else if (value) variantsObj[String(value)] = String(value);
+    };
 
     // Debug: Log the product structure to understand where variation properties might be
     console.log('[Uptain] Product structure for variants:', {
@@ -395,92 +427,71 @@ export const useUptainData = () => {
     });
 
     // Extract variants from variationProperties
-    // Use the same approach as formatVariationProperties in ItemDataHelpers.ts
-    // First try product.variationProperties directly
     if (product.variationProperties && Array.isArray(product.variationProperties)) {
       console.log('[Uptain] Found product.variationProperties, processing...');
       product.variationProperties.forEach((group: any) => {
         if (group.properties && Array.isArray(group.properties)) {
           group.properties.forEach((prop: any) => {
-            // Use direct access like formatVariationProperties: prop.names?.name and prop.values?.value
             const value = prop.values?.value;
             if (!value) return;
-            
             const name = prop.names?.name ?? '';
-            if (name && value) {
-              variants.push(`${name}:${value}`);
-            } else if (value) {
-              // If no name, just use the value
-              variants.push(value);
-            }
+            addVariant(name, value);
           });
         }
       });
     }
-    
-    // If no variants found, try productGetters.getPropertyGroups() (same as VariationProperties component)
-    if (variants.length === 0) {
+
+    if (Object.keys(variantsObj).length === 0) {
       const variationPropertyGroups = productGetters.getPropertyGroups(product);
       console.log('[Uptain] Trying getPropertyGroups, result:', variationPropertyGroups);
       if (variationPropertyGroups && Array.isArray(variationPropertyGroups) && variationPropertyGroups.length > 0) {
         variationPropertyGroups.forEach((group: any) => {
           if (group.properties && Array.isArray(group.properties)) {
             group.properties.forEach((prop: any) => {
-              // Use productPropertyGetters to get name and value
               const name = productPropertyGetters.getPropertyName(prop) || '';
               const value = productPropertyGetters.getPropertyValue(prop) || '';
               console.log('[Uptain] Property from getPropertyGroups:', { name, value });
-              if (name && value) {
-                variants.push(`${name}:${value}`);
-              } else if (value) {
-                variants.push(value);
-              }
+              addVariant(name, value);
             });
           }
         });
       }
     }
-    
-    // If still no variants, try product.properties (maybe they're stored there)
-    if (variants.length === 0 && product.properties && Array.isArray(product.properties)) {
+
+    if (Object.keys(variantsObj).length === 0 && product.properties && Array.isArray(product.properties)) {
       console.log('[Uptain] Trying product.properties, length:', product.properties.length);
       product.properties.forEach((prop: any) => {
-        // Check if this property is a variation property
         const name = productPropertyGetters.getPropertyName(prop) || '';
         const value = productPropertyGetters.getPropertyValue(prop) || '';
         if (name && value) {
           console.log('[Uptain] Property from product.properties:', { name, value });
-          variants.push(`${name}:${value}`);
+          addVariant(name, value);
         }
       });
     }
-    
-    // Try product.attributes or product.groupedAttributes
-    if (variants.length === 0 && (product as any).attributes && Array.isArray((product as any).attributes)) {
+
+    if (Object.keys(variantsObj).length === 0 && (product as any).attributes && Array.isArray((product as any).attributes)) {
       console.log('[Uptain] Trying product.attributes, length:', (product as any).attributes.length);
       (product as any).attributes.forEach((attr: any, index: number) => {
-        // Attributes have structure: { attribute: { backendName: "..." }, value: { backendName: "..." } }
-        // Extract name from attribute.backendName
         const name = attr.attribute?.backendName ||
-                    attr.attribute?.name || 
-                    attr.attribute?.names?.name || 
+                    attr.attribute?.name ||
+                    attr.attribute?.names?.name ||
                     attr.name ||
                     '';
-        // Extract value from value.backendName
         const value = attr.value?.backendName ||
                      attr.value?.value ||
-                     attr.values?.value || 
+                     attr.values?.value ||
                      attr.value ||
                      '';
         console.log(`[Uptain] Attribute ${index} extracted:`, { name, value, attrStructure: { hasAttribute: !!attr.attribute, hasValue: !!attr.value } });
         if (name && value) {
           console.log('[Uptain] Attribute from product.attributes:', { name, value });
-          variants.push(`${name}:${value}`);
+          addVariant(name, value);
         }
       });
     }
-    
-    if (variants.length === 0 && (product as any).groupedAttributes && Array.isArray((product as any).groupedAttributes)) {
+
+    if (Object.keys(variantsObj).length === 0 && (product as any).groupedAttributes && Array.isArray((product as any).groupedAttributes)) {
       console.log('[Uptain] Trying product.groupedAttributes, length:', (product as any).groupedAttributes.length);
       (product as any).groupedAttributes.forEach((group: any) => {
         if (group.attributes && Array.isArray(group.attributes)) {
@@ -489,25 +500,48 @@ export const useUptainData = () => {
             const value = attr.value || attr.values?.value || '';
             if (name && value) {
               console.log('[Uptain] Attribute from product.groupedAttributes:', { name, value });
-              variants.push(`${name}:${value}`);
+              addVariant(name, value);
             }
           });
         }
       });
     }
-    
-    console.log('[Uptain] Product variants result:', variants, 
-               'count:', variants.length,
+
+    const hasVariants = Object.keys(variantsObj).length > 0;
+    console.log('[Uptain] Product variants result:', hasVariants ? variantsObj : '(none)',
                'from product.variationProperties:', product.variationProperties?.length || 0,
                'from getPropertyGroups:', productGetters.getPropertyGroups(product)?.length || 0);
-    
-    if (variants.length === 0) {
+
+    if (!hasVariants) {
       console.warn('[Uptain] No variants found! Full product structure:', JSON.stringify({
         variationProperties: product.variationProperties,
         properties: product.properties,
         variation: product.variation,
       }, null, 2));
     }
+
+    // Same formatting as wishlist: keys unquoted, string values in single quotes; variants as object, omitted when empty
+    const escapeForSingleQuoted = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const serializeVariants = (v: Record<string, string>) => {
+      const parts = Object.entries(v).map(([k, val]) => `${k}:'${escapeForSingleQuoted(val)}'`);
+      return `{${parts.join(',')}}`;
+    };
+    const productVariantsStr = hasVariants ? serializeVariants(variantsObj) : '';
+
+    const productParts = [
+      `productId:'${escapeForSingleQuoted(productId)}'`,
+      `name:'${escapeForSingleQuoted(productName)}'`,
+      `price:'${escapeForSingleQuoted(formatPrice(productPrice))}'`,
+      `originalPrice:'${escapeForSingleQuoted(formatPrice(originalPrice))}'`,
+      `image:'${escapeForSingleQuoted(productImage)}'`,
+      `tags:'${escapeForSingleQuoted(tags.join(';'))}'`,
+      `category:'${escapeForSingleQuoted(productCategory)}'`,
+      `categoryPaths:'${escapeForSingleQuoted(categoryPaths.join(';'))}'`,
+    ];
+    if (hasVariants) {
+      productParts.push(`variants:${serializeVariants(variantsObj)}`);
+    }
+    const productSerialized = `{${productParts.join(',')}}`;
 
     return {
       'product-id': productId,
@@ -516,9 +550,10 @@ export const useUptainData = () => {
       'product-original-price': formatPrice(originalPrice),
       'product-image': productImage,
       'product-tags': tags.join(';'),
-      'product-variants': variants.join(';'),
+      'product-variants': productVariantsStr,
       'product-category': productCategory,
       'product-category-paths': categoryPaths.join(';'),
+      product: productSerialized,
     };
   };
 
@@ -923,4 +958,3 @@ export const useUptainData = () => {
     calculateRevenue,
   };
 };
-
