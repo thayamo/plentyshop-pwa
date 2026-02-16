@@ -682,7 +682,7 @@ export default defineNuxtPlugin(() => {
             const data = await getAllData(product);
             if (data) {
               // Define attributes that should always be present (Table A)
-              const alwaysPresentAttributes = ['plugin', 'returnurl', 'page', 'wishlist', 'comparison'];
+              const alwaysPresentAttributes = ['plugin', 'returnurl', 'page', 'wishlist'];
               
               // Get all existing data-* attributes
               const existingAttributes = Array.from(currentScript.getAttributeNames())

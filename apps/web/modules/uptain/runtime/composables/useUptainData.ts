@@ -906,12 +906,13 @@ export const useUptainData = () => {
     const uptainId = getSetting() || runtimeConfig.public.uptainId || '';
     if (!uptainId || uptainId === 'XXXXXXXXXXXXXXXX') return null;
 
+    const comparisonData = getComparisonData();
     const data: Record<string, string> = {
       plugin: getPluginVersion(),
       returnurl: getReturnUrl(),
       page: getPageType(),
       wishlist: await getWishlistData(),
-      comparison: getComparisonData(),
+      ...(comparisonData && comparisonData !== '{}' && { comparison: comparisonData }),
     };
 
     // Add cart data if cart has items
