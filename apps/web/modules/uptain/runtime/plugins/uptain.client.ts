@@ -610,6 +610,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       () => {
         if (isUpdatingConsentCookie) return;
         syncCookieConsentState();
+        scheduleSync();
       },
     );
 

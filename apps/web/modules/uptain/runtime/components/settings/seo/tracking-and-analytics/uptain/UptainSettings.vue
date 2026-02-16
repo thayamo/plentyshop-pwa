@@ -169,7 +169,7 @@
     </div>
 
     <!-- Debugging -->
-    <div style="position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
+    <div style="display: none; position: relative; border: 1px solid rgb(238 238 238 / 20%); padding: 1em; border-radius: 0.5em;">
       <div
         style="position: absolute; top: 0; left: 0.5em; z-index: 1; transform: translateY(-50%); padding: 0 0.5em; background: #111; font-size: 0.875em; color: #696969;"
       >
