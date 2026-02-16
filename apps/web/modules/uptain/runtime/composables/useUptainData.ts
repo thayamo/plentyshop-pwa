@@ -604,7 +604,7 @@ export const useUptainData = () => {
 
     // Get products on the category page
     const products = productsCatalog.value.products || [];
-    const categoryProducts: Record<string, any> = {};
+    const categoryProducts: Record<string, { name: string; price: string; originalPrice: string; image: string }> = {};
     products.forEach((product: Product) => {
       const productId = productGetters.getId(product)?.toString() || '';
       if (productId) {
@@ -616,11 +616,19 @@ export const useUptainData = () => {
         categoryProducts[productId] = {
           name: productName,
           price: formatPrice(productPrice),
-          'original-price': formatPrice(originalPrice),
+          originalPrice: formatPrice(originalPrice),
           image: productImage,
         };
       }
     });
+
+    // Same format as wishlist: keys unquoted, string values in single quotes
+    const escapeForSingleQuoted = (s: string) => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    const categoryProductEntries = Object.entries(categoryProducts).map(([id, obj]) => {
+      const inner = `name:'${escapeForSingleQuoted(obj.name)}',price:'${escapeForSingleQuoted(obj.price)}',originalPrice:'${escapeForSingleQuoted(obj.originalPrice)}',image:'${escapeForSingleQuoted(obj.image)}'`;
+      return `${id}:{${inner}}`;
+    });
+    const categoryProductsStr = categoryProductEntries.length > 0 ? `{${categoryProductEntries.join(',')}}` : '{}';
 
     // Get sorting from URL
     const { getFacetsFromURL } = useCategoryFilter();
@@ -630,7 +638,7 @@ export const useUptainData = () => {
     return {
       'category-name': categoryName,
       'category-path': categoryPath,
-      'category-products': JSON.stringify(categoryProducts),
+      'category-products': categoryProductsStr,
       'category-sorting': categorySorting,
     };
   };

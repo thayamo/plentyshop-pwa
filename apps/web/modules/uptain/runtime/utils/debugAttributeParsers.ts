@@ -10,7 +10,7 @@ const singleQuotedToDoubleQuoted = (s: string): string =>
     '"' + content.replace(/\\'/g, "'").replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'
   );
 
-const tryParseJson = (raw: string): unknown | null => {
+export const tryParseJson = (raw: string): unknown | null => {
   try {
     return JSON.parse(raw) as unknown;
   } catch {

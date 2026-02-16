@@ -1,7 +1,7 @@
 import { defineNuxtPlugin, useRoute } from 'nuxt/app';
 import { nextTick, watch } from 'vue';
 import { useUptainData } from '../composables/useUptainData';
-import { parseWishlistDebugRows } from '../utils/debugAttributeParsers';
+import { parseWishlistDebugRows, tryParseJson } from '../utils/debugAttributeParsers';
 import { useProduct } from '~/composables/useProduct/useProduct';
 import { createProductParams } from '~/utils/productHelper';
 import { productGetters } from '@plentymarkets/shop-api';
@@ -56,18 +56,16 @@ export default defineNuxtPlugin(() => {
       const key = attr.replace(/^data-/, '');
 
       if (key === 'category-products' && value) {
-        try {
-          const parsed = JSON.parse(value);
-          if (parsed && typeof parsed === 'object') {
-            const items = Object.entries(parsed).map(([id, data]) => ({
-              id,
-              ...(data as Record<string, unknown>),
-            }));
+        const parsed = tryParseJson(value);
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+          const items = Object.entries(parsed as Record<string, unknown>).map(([id, data]) => ({
+            id,
+            ...(data as Record<string, unknown>),
+          }));
+          if (items.length > 0) {
             extraTables.push({ title: 'category-products', rows: items });
             return { key, value: `[${items.length} items]` };
           }
-        } catch {
-          // ignore parse errors
         }
       }
 
@@ -122,20 +120,17 @@ export default defineNuxtPlugin(() => {
       return;
     }
     
-    // Get product if on product page
+    // Get product if on product page – wait for it so script is created with product data on first load
     let product = null;
     if (process.client && route.path.includes('/product/')) {
-      // Extract productId from route params (itemId contains the product ID)
       const itemId = route.params.itemId as string;
       if (itemId) {
         const { productParams } = createProductParams(route.params);
         const productId = productParams.id.toString();
         if (productId) {
-          // Helper function to get product from all sources
           const getProductFromAllSources = () => {
             const { currentProduct } = useProducts();
             const { productForEditor, data: productData } = useProduct(productId);
-            
             return currentProduct.value && Object.keys(currentProduct.value).length > 0
               ? currentProduct.value
               : (productForEditor.value && Object.keys(productForEditor.value).length > 0
@@ -144,26 +139,31 @@ export default defineNuxtPlugin(() => {
                   ? productData.value
                   : null));
           };
-          
-          // Try to get product immediately
+
           product = getProductFromAllSources();
-          
-          console.log('[Uptain] Initial product check:', {
-            hasProduct: !!product,
-            productKeys: product ? Object.keys(product).length : 0,
-            routePath: route.path,
-            isProductPage: route.path.includes('/product/'),
-          });
-          
-          if (product) {
-            console.log('[Uptain] Product found immediately on initial load');
+          if (!product || Object.keys(product).length === 0) {
+            const maxWaitMs = 4000;
+            const pollIntervalMs = 100;
+            const start = Date.now();
+            while (Date.now() - start < maxWaitMs) {
+              await new Promise((r) => setTimeout(r, pollIntervalMs));
+              product = getProductFromAllSources();
+              if (product && Object.keys(product).length > 0) {
+                console.log('[Uptain] Product available after', Date.now() - start, 'ms, creating script with product data');
+                break;
+              }
+            }
+            if (!product || Object.keys(product).length === 0) {
+              console.log('[Uptain] Product not available after', maxWaitMs, 'ms, creating script without product data (will update on frontend:productLoaded)');
+              product = null;
+            }
           } else {
-            console.log('[Uptain] Product not available yet, will create script and update when product loads');
+            console.log('[Uptain] Product found immediately on initial load');
           }
         }
       }
     }
-    
+
     const data = await getAllData(product);
     console.log('[Uptain] getAllData returned:', data ? 'data exists' : 'null', 'hasProductData:', data && Object.keys(data).some(k => k.startsWith('product-')));
     if (!data) {
@@ -220,6 +220,7 @@ export default defineNuxtPlugin(() => {
         'product-variants',
         'product-category',
         'product-category-paths',
+        'product',
       ];
       
       let attributeCheckInterval: ReturnType<typeof setInterval> | null = null;
@@ -382,7 +383,7 @@ export default defineNuxtPlugin(() => {
                   if (productData) {
                     let attributesSet = 0;
                     Object.entries(productData).forEach(([key, value]) => {
-                      if (key.startsWith('product-')) {
+                      if (key.startsWith('product-') || key === 'product') {
                         if (key === 'product-variants') {
                           currentScript.setAttribute(`data-${key}`, String(value || ''));
                           attributesSet++;
@@ -655,8 +656,26 @@ export default defineNuxtPlugin(() => {
           return;
         }
         if (!shouldBlockCookies() || checkCookieConsent()) {
-          const product = getProductFromState();
-          
+          let product = getProductFromState();
+          // On product page: wait for product so we don't overwrite with null (product loads async)
+          if (route.path.includes('/product/') && (!product || Object.keys(product).length === 0)) {
+            const itemId = route.params.itemId as string;
+            if (itemId) {
+              const { productParams } = createProductParams(route.params);
+              const productId = productParams.id.toString();
+              if (productId) {
+                const maxWaitMs = 3000;
+                const pollIntervalMs = 80;
+                const start = Date.now();
+                while (Date.now() - start < maxWaitMs) {
+                  await new Promise((r) => setTimeout(r, pollIntervalMs));
+                  product = getProductFromState();
+                  if (product && Object.keys(product).length > 0) break;
+                }
+              }
+            }
+          }
+
           // Update script with new data
           const currentScript = document.getElementById('__up_data_qp');
           if (currentScript) {

@@ -48,7 +48,7 @@ const getDefaultLocale = () => {
   return localeKeys.includes(defaultLocale) ? defaultLocale : 'en';
 };
 
-export const nuxtI18nOptions: NuxtI18nOptions = {
+export const nuxtI18nOptions = {
   locales: getLocales(),
   defaultLocale: getDefaultLocale(),
   langDir: '../app/lang',
@@ -56,7 +56,4 @@ export const nuxtI18nOptions: NuxtI18nOptions = {
   vueI18n: '~/configuration/vueI18n.config.ts',
   detectBrowserLanguage: false,
   lazy: true,
-  bundle: {
-    optimizeTranslationDirective: false,
-  },
-};
+} as NuxtI18nOptions;
