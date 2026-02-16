@@ -12,7 +12,6 @@ export default defineNuxtPlugin((nuxtApp) => {
   const { getAllData, shouldBlockCookies, getUptainId } = useUptainData();
   const route = useRoute();
   const { getSetting: getUptainEnabled } = useSiteSettings('uptainEnabled');
-  const { getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
   const { getSetting: getDebugMode } = useSiteSettings('uptainDebugMode');
   const runtimeConfig = useRuntimeConfig();
   
@@ -439,7 +438,6 @@ export default defineNuxtPlugin((nuxtApp) => {
     const groupName = (runtimeConfig.public.uptainCookieGroup as string | undefined) || 'CookieBar.marketing.label';
     const rawConsent = consentCookie.value ?? null;
     const storedConsent = getStoredUptainConsent(groupName, rawConsent);
-    const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
 
     if (storedConsent !== null) {
       return storedConsent;
@@ -451,8 +449,8 @@ export default defineNuxtPlugin((nuxtApp) => {
       return group?.accepted ?? false;
     }
 
-    // Opt-in: no consent cookie yet -> false. Opt-out: allow by default.
-    return registerAsOptOut ? true : false;
+    // Opt-in only: no consent cookie yet -> no consent.
+    return false;
   };
 
   const consentCookie = useCookie<string>('consent-cookie');
@@ -512,8 +510,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     }
   };
 
-  const syncCookieOptOutState = () => {
-    const registerAsOptOut = isSettingEnabled(getRegisterCookieAsOptOut());
+  const syncCookieConsentState = () => {
     const groups = cookieGroups.value;
     if (!groups) return;
 
@@ -528,11 +525,8 @@ export default defineNuxtPlugin((nuxtApp) => {
 
     if (!uptainCookie) return;
 
-    const desiredStatus = registerAsOptOut
-      ? 'CookieBar.uptain.cookies.uptain.status.optOut'
-      : 'CookieBar.uptain.cookies.uptain.status';
-    const desiredAccepted =
-      storedConsent !== null ? storedConsent : registerAsOptOut ? true : false;
+    const desiredStatus = 'CookieBar.uptain.cookies.uptain.status';
+    const desiredAccepted = storedConsent !== null ? storedConsent : false;
 
     if (uptainCookie.Status !== desiredStatus) {
       uptainCookie.Status = desiredStatus;
@@ -583,10 +577,10 @@ export default defineNuxtPlugin((nuxtApp) => {
 
     // Watch for Uptain enabled/disabled, ID or cookie group changes
     watch(
-      [() => getUptainEnabled(), () => getUptainId(), () => shouldBlockCookies(), () => getRegisterCookieAsOptOut()],
+      [() => getUptainEnabled(), () => getUptainId(), () => shouldBlockCookies()],
       () => {
         scheduleSync();
-        syncCookieOptOutState();
+        syncCookieConsentState();
       },
       { immediate: true },
     );
@@ -605,7 +599,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       () => {
         captureUptainSelection();
         scheduleSync();
-        syncCookieOptOutState();
+        syncCookieConsentState();
       },
       { deep: true },
     );
@@ -615,7 +609,7 @@ export default defineNuxtPlugin((nuxtApp) => {
       () => consentCookie.value,
       () => {
         if (isUpdatingConsentCookie) return;
-        syncCookieOptOutState();
+        syncCookieConsentState();
       },
     );
 

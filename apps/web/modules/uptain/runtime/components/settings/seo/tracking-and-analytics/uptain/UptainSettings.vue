@@ -166,25 +166,6 @@
           />
         </div>
       </div>
-
-      <!-- Register Cookie as opt-out -->
-      <div class="flex justify-between">
-        <UiFormLabel class="mb-1">{{ getEditorTranslation('registerCookieAsOptOut.label') }}</UiFormLabel>
-        <div style="position: relative;">
-          <input
-            v-model.number="registerCookieAsOptOut"
-            type="number"
-            min="0"
-            max="1"
-            style="position: absolute; opacity: 0; pointer-events: none; width: 0; height: 0;"
-          />
-          <SfSwitch
-            :model-value="registerCookieAsOptOut === 1"
-            @update:model-value="registerCookieAsOptOut = $event ? 1 : 0"
-            class="uptain-switch checked:bg-editor-button checked:before:hover:bg-editor-button hover:border-gray-700 hover:before:bg-gray-700 checked:hover:bg-gray-300"
-          />
-        </div>
-      </div>
     </div>
 
     <!-- Debugging -->
@@ -247,7 +228,6 @@ const { updateSetting: updateBlockCookies, getSetting: getBlockCookies } = useSi
 const { updateSetting: updateNewsletterData, getSetting: getNewsletterData } = useSiteSettings('uptainTransmitNewsletterData');
 const { updateSetting: updateCustomerData, getSetting: getCustomerData } = useSiteSettings('uptainTransmitCustomerData');
 const { updateSetting: updateRevenue, getSetting: getRevenue } = useSiteSettings('uptainTransmitRevenue');
-const { updateSetting: updateRegisterCookieAsOptOut, getSetting: getRegisterCookieAsOptOut } = useSiteSettings('uptainRegisterCookieAsOptOut');
 const { updateSetting: updateDebugMode, getSetting: getDebugMode } = useSiteSettings('uptainDebugMode');
 
 const uptainEnabled = computed({
@@ -322,20 +302,6 @@ const transmitRevenue = computed({
   },
 });
 
-
-const registerCookieAsOptOut = computed({
-  get: () => {
-    const value = getRegisterCookieAsOptOut();
-    if (value === 'true' || value === '1') return 1;
-    if (value === 'false' || value === '0') return 0;
-    return Number(value) || 0;
-  },
-  set: (value) => {
-    const numValue = typeof value === 'number' ? value : (value ? 1 : 0);
-    updateRegisterCookieAsOptOut(numValue.toString());
-  },
-});
-
 const debugMode = computed({
   get: () => {
     const value = getDebugMode();
@@ -361,7 +327,6 @@ watch(
     () => getNewsletterData(),
     () => getCustomerData(),
     () => getRevenue(),
-    () => getRegisterCookieAsOptOut(),
     () => getDebugMode(),
   ],
   () => {
@@ -382,9 +347,6 @@ watch(
     },
     "cookieSettingsLabel": "Cookie Settings",
     "debuggingLabel": "Debugging",
-    "registerCookieAsOptOut": {
-      "label": "Register Cookie as opt-out"
-    },
     "debugMode": {
       "label": "Debug Mode",
       "description": "Log Uptain script data on every change to the browser console."
@@ -417,9 +379,6 @@ watch(
     },
     "cookieSettingsLabel": "Cookie-Einstellungen",
     "debuggingLabel": "Debugging",
-    "registerCookieAsOptOut": {
-      "label": "Register Cookie as opt-out"
-    },
     "debugMode": {
       "label": "Debug Modus",
       "description": "Uptain Script-Daten bei jeder Änderung in der Browser-Konsole loggen."

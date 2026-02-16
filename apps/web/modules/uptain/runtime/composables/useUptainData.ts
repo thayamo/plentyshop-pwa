@@ -710,15 +710,12 @@ export const useUptainData = () => {
 
   const checkNewsletterSubscription = async (): Promise<boolean> => {
     if (!user.value) return false;
-    
-    // Check if user has emailFolder property (newsletter subscription indicator)
-    // In PlentyMarkets, users with newsletter subscriptions typically have emailFolder set
-    // This is a best-effort check as the exact property might vary
-    const hasEmailFolder = !!(user.value as any).emailFolder;
-    
-    // Alternative: Check if there's a newsletter-related property
-    // Note: The exact property name might need to be adjusted based on the actual API response
-    return hasEmailFolder || !!(user.value as any).isNewsletterSubscriber || false;
+    const u = user.value as Record<string, unknown>;
+    // Shop-API User: newsletterAllowanceAt = timestamp when user allowed newsletter (PlentyMarkets)
+    const hasNewsletterAllowance = u.newsletterAllowanceAt != null && Number(u.newsletterAllowanceAt) > 0;
+    const hasEmailFolder = !!u.emailFolder;
+    const isNewsletterSubscriber = !!u.isNewsletterSubscriber;
+    return hasNewsletterAllowance || hasEmailFolder || isNewsletterSubscriber;
   };
 
   const checkHasSuccessfulOrders = async (): Promise<boolean> => {

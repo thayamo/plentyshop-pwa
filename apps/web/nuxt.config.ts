@@ -238,7 +238,6 @@ export default defineNuxtConfig({
       uptainTransmitRevenue: process.env.NUXT_PUBLIC_UPTAIN_TRANSMIT_REVENUE || 'false',
       uptainEnabled: process.env.NUXT_PUBLIC_UPTAIN_ENABLED || '0',
       uptainCookieGroup: process.env.NUXT_PUBLIC_UPTAIN_COOKIE_GROUP || 'CookieBar.marketing.label',
-      uptainRegisterCookieAsOptOut: process.env.NUXT_PUBLIC_UPTAIN_REGISTER_COOKIE_AS_OPT_OUT || '0',
       uptainDebugMode: process.env.NUXT_PUBLIC_UPTAIN_DEBUG_MODE || '0',
     },
   },
