@@ -65,7 +65,16 @@ export default {
       name: 'CookieBar.marketing.label',
       showMore: false,
       description: 'CookieBar.marketing.description',
-      cookies: [],
+      cookies: [
+        {
+          name: 'CookieBar.uptain.cookies.uptain.name',
+          Provider: 'CookieBar.uptain.cookies.uptain.provider',
+          Status: 'CookieBar.uptain.cookies.uptain.status',
+          PrivacyPolicy: 'https://uptain.de/datenschutz',
+          Lifespan: 'CookieBar.uptain.cookies.uptain.lifespan',
+          accepted: false,
+        },
+      ],
     },
   ],
 } as CookieGroupFromNuxtConfig;
