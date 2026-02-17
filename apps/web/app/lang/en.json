@@ -524,6 +524,16 @@
       "description": "Marketing cookies are used by third parties and publishers to display personalised advertisements by following users across websites.",
       "label": "Marketing"
     },
+    "uptain": {
+      "cookies": {
+        "uptain": {
+          "name": "Uptain",
+          "provider": "Uptain GmbH",
+          "status": "Newsletter signup and personalisation.",
+          "lifespan": "Session"
+        }
+      }
+    },
     "More information": "More information",
     "Privacy Settings": "Privacy Settings",
     "legalDisclosure": "Legal disclosure",

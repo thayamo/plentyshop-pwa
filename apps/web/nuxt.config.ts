@@ -20,6 +20,8 @@ export default defineNuxtConfig({
   app: appConfiguration,
   experimental: {
     asyncContext: true,
+    // Verhindert 404 bei "Error fetching app manifest" in Deployment (z. B. PlentyONE).
+    appManifest: false,
   },
   appConfig: {
     titleSuffix: process.env.NAME || 'PlentyONE Shop',
@@ -29,6 +31,9 @@ export default defineNuxtConfig({
     dirs: ['~/composables', '~/composables/**', '~/utils/**'],
   },
   vite: {
+    ssr: {
+      noExternal: ['uptain-pwa-beta'],
+    },
     server: {
       fs: {
         allow: ['../../..'], // relative to the current nuxt.config.ts
