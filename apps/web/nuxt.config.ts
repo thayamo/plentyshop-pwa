@@ -149,6 +149,7 @@ export default defineNuxtConfig({
     '@nuxtjs/tailwindcss',
     '@nuxtjs/turnstile',
     'nuxt-lazy-hydrate',
+    'uptain-pwa-beta',
     'nuxt-viewport',
     '@vee-validate/nuxt',
     '@vite-pwa/nuxt',
