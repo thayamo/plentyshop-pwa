@@ -63,3 +63,5 @@ apps/web/reference/
 .vscode
 *.code-workspace
 *.tsbuildinfo
+apps/web/nuxt.config.ts
+apps/web/nuxt.config.ts
